@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Block admin and internal pages
+Disallow: /admin*
+Disallow: /api*
+Disallow: /uploads*
+
+# Important files
+Sitemap: https://chatwithmechanic.com/sitemap.xml
+
+# Crawl delay for better server performance  
+Crawl-delay: 1
+
+# Allow search engines to index images
+User-agent: Googlebot-Image
+Allow: /
+
+# Block unnecessary crawling of certain file types
+User-agent: *
+Disallow: /*.json$
+Disallow: /*.tsx$
+Disallow: /*.ts$
