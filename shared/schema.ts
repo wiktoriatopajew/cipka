@@ -1,65 +1,66 @@
+
 import { sql } from "drizzle-orm";
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, real, boolean, timestamp, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = sqliteTable("users", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const users = pgTable("users", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email"),
-  isAdmin: integer("is_admin", { mode: "boolean" }).default(false),
-  hasSubscription: integer("has_subscription", { mode: "boolean" }).default(false),
-  isOnline: integer("is_online", { mode: "boolean" }).default(false),
-  isBlocked: integer("is_blocked", { mode: "boolean" }).default(false),
-  referralCode: text("referral_code").unique(), // Unique user referral code
-  referredBy: text("referred_by"), // ID of user who referred
-  lastSeen: text("last_seen").default(sql`CURRENT_TIMESTAMP`),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  isAdmin: boolean("is_admin").default(false),
+  hasSubscription: boolean("has_subscription").default(false),
+  isOnline: boolean("is_online").default(false),
+  isBlocked: boolean("is_blocked").default(false),
+  referralCode: text("referral_code").unique(),
+  referredBy: text("referred_by"),
+  lastSeen: timestamp("last_seen").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const subscriptions = sqliteTable("subscriptions", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: text("user_id").references(() => users.id),
   amount: real("amount"),
-  status: text("status").default("active"), // active, cancelled, expired
-  purchasedAt: text("purchased_at").default(sql`CURRENT_TIMESTAMP`),
-  expiresAt: text("expires_at"),
+  status: text("status").default("active"),
+  purchasedAt: timestamp("purchased_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
 });
 
-export const chatSessions = sqliteTable("chat_sessions", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const chatSessions = pgTable("chat_sessions", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: text("user_id").references(() => users.id),
-  vehicleInfo: text("vehicle_info"), // JSON string with vehicle details
-  status: text("status").default("active"), // active, closed, waiting
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
-  lastActivity: text("last_activity").default(sql`CURRENT_TIMESTAMP`),
+  vehicleInfo: text("vehicle_info"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastActivity: timestamp("last_activity").defaultNow(),
 });
 
-export const messages = sqliteTable("messages", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const messages = pgTable("messages", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   sessionId: text("session_id").references(() => chatSessions.id),
   senderId: text("sender_id").references(() => users.id),
   senderType: text("sender_type"), // user, admin, bot
   content: text("content").notNull(),
-  isRead: integer("is_read", { mode: "boolean" }).default(false),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const attachments = sqliteTable("attachments", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const attachments = pgTable("attachments", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   messageId: text("message_id").references(() => messages.id),
   fileName: text("file_name").notNull(), // unique filename on server
   originalName: text("original_name").notNull(), // original filename from user
   fileSize: integer("file_size").notNull(), // size in bytes
   mimeType: text("mime_type").notNull(), // MIME type
   filePath: text("file_path").notNull(), // path on server
-  uploadedAt: text("uploaded_at").default(sql`CURRENT_TIMESTAMP`),
-  expiresAt: text("expires_at").notNull(), // auto-delete date (30 days)
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // auto-delete date (30 days)
 });
 
-export const referralRewards = sqliteTable("referral_rewards", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const referralRewards = pgTable("referral_rewards", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()`),
   referrerId: text("referrer_id").references(() => users.id), // Who referred
   referredId: text("referred_id").references(() => users.id), // Who was referred
   rewardType: text("reward_type").notNull(), // "free_month", "discount", etc.
@@ -68,8 +69,8 @@ export const referralRewards = sqliteTable("referral_rewards", {
   requiredReferrals: integer("required_referrals").default(3), // How many referrals needed
   currentReferrals: integer("current_referrals").default(0), // Current referral count
   rewardCycle: integer("reward_cycle").default(1), // Which reward cycle (1, 2, 3, etc.)
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
-  awardedAt: text("awarded_at"), // When reward was granted
+  createdAt: timestamp("created_at").defaultNow(),
+  awardedAt: timestamp("awarded_at"), // When reward was granted
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -113,49 +114,49 @@ export const insertReferralRewardSchema = createInsertSchema(referralRewards).om
   createdAt: true,
 });
 
-export const googleAdsConfig = sqliteTable('google_ads_config', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const googleAdsConfig = pgTable('google_ads_config', {
+  id: serial('id').primaryKey(),
   conversionId: text('conversion_id'),
   purchaseLabel: text('purchase_label'),
   signupLabel: text('signup_label'),
-  enabled: integer('enabled', { mode: 'boolean' }).default(false),
-  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+  enabled: boolean('enabled').default(false),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const appConfig = sqliteTable('app_config', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const appConfig = pgTable('app_config', {
+  id: serial('id').primaryKey(),
   // Stripe Configuration
   stripePublishableKey: text('stripe_publishable_key'),
   stripeSecretKey: text('stripe_secret_key'),
   stripeWebhookSecret: text('stripe_webhook_secret'),
-  
+
   // PayPal Configuration
   paypalClientId: text('paypal_client_id'),
   paypalClientSecret: text('paypal_client_secret'),
   paypalWebhookId: text('paypal_webhook_id'),
   paypalMode: text('paypal_mode').default('sandbox'), // 'sandbox' or 'live'
-  
+
   // SMTP Email Configuration
   smtpHost: text('smtp_host'),
   smtpPort: integer('smtp_port'),
-  smtpSecure: integer('smtp_secure', { mode: 'boolean' }).default(true),
+  smtpSecure: boolean('smtp_secure').default(true),
   smtpUser: text('smtp_user'),
   smtpPass: text('smtp_pass'),
   emailFrom: text('email_from'),
   emailFromName: text('email_from_name').default('AutoMentor'),
-  
+
   // General Settings
   appName: text('app_name').default('AutoMentor'),
   appUrl: text('app_url').default('http://localhost:5000'),
   supportEmail: text('support_email'),
   faviconPath: text('favicon_path'),
-  
-  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Analytics tables
-export const analyticsEvents = sqliteTable('analytics_events', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const analyticsEvents = pgTable('analytics_events', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()`),
   eventType: text('event_type').notNull(),
   eventName: text('event_name').notNull(),
   userId: text('user_id').references(() => users.id),
@@ -170,11 +171,11 @@ export const analyticsEvents = sqliteTable('analytics_events', {
   deviceType: text('device_type'),
   browser: text('browser'),
   os: text('os'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
-export const dailyStats = sqliteTable('daily_stats', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const dailyStats = pgTable('daily_stats', {
+  id: serial('id').primaryKey(),
   date: text('date').notNull().unique(),
   totalUsers: integer('total_users').default(0),
   newUsers: integer('new_users').default(0),
@@ -187,35 +188,35 @@ export const dailyStats = sqliteTable('daily_stats', {
   bounceRate: real('bounce_rate').default(0),
   avgSessionDuration: integer('avg_session_duration').default(0),
   conversionRate: real('conversion_rate').default(0),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const revenueAnalytics = sqliteTable('revenue_analytics', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const revenueAnalytics = pgTable('revenue_analytics', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()`),
   userId: text('user_id').references(() => users.id),
   subscriptionId: text('subscription_id').references(() => subscriptions.id),
   amount: real('amount').notNull(),
   currency: text('currency').default('PLN'),
   paymentMethod: text('payment_method'),
   subscriptionType: text('subscription_type'),
-  isRefund: integer('is_refund', { mode: 'boolean' }).default(false),
+  isRefund: boolean('is_refund').default(false),
   refundAmount: real('refund_amount').default(0),
   marketingSource: text('marketing_source'),
   conversionFunnelStep: integer('conversion_funnel_step'),
   customerLifetimeValue: real('customer_lifetime_value').default(0),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // CMS tables
-export const contentPages = sqliteTable('content_pages', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const contentPages = pgTable('content_pages', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()`),
   pageKey: text('page_key').notNull().unique(),
   title: text('title').notNull(),
   metaDescription: text('meta_description'),
   metaKeywords: text('meta_keywords'),
   content: text('content'), // JSON string
-  isPublished: integer('is_published', { mode: 'boolean' }).default(true),
+  isPublished: boolean('is_published').default(true),
   seoTitle: text('seo_title'),
   canonicalUrl: text('canonical_url'),
   ogTitle: text('og_title'),
@@ -223,38 +224,38 @@ export const contentPages = sqliteTable('content_pages', {
   ogImage: text('og_image'),
   lastEditedBy: text('last_edited_by'),
   version: integer('version').default(1),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const faqs = sqliteTable('faqs', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const faqs = pgTable('faqs', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()`),
   question: text('question').notNull(),
   answer: text('answer').notNull(),
   category: text('category').default('general'),
-  isPublished: integer('is_published', { mode: 'boolean' }).default(true),
+  isPublished: boolean('is_published').default(true),
   sortOrder: integer('sort_order').default(0),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const testimonials = sqliteTable('testimonials', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const testimonials = pgTable('testimonials', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
   email: text('email'),
   content: text('content').notNull(),
   rating: integer('rating').default(5),
-  isApproved: integer('is_approved', { mode: 'boolean' }).default(false),
-  isPublished: integer('is_published', { mode: 'boolean' }).default(false),
+  isApproved: boolean('is_approved').default(false),
+  isPublished: boolean('is_published').default(false),
   avatar: text('avatar'),
   company: text('company'),
   position: text('position'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const mediaLibrary = sqliteTable('media_library', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+export const mediaLibrary = pgTable('media_library', {
+  id: text('id').primaryKey().default(sql`gen_random_uuid()`),
   filename: text('filename').notNull(),
   originalName: text('original_name').notNull(),
   mimeType: text('mime_type').notNull(),
@@ -265,7 +266,7 @@ export const mediaLibrary = sqliteTable('media_library', {
   description: text('description'),
   tags: text('tags'), // JSON array
   uploadedBy: text('uploaded_by'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 export const insertGoogleAdsConfigSchema = createInsertSchema(googleAdsConfig);
