@@ -3,27 +3,21 @@
 
 -- Ensure users.username exists
 ALTER TABLE IF EXISTS public.users ADD COLUMN IF NOT EXISTS username text;
---> statement-breakpoint
 
--- Create unique index on users.username if missing (concurrent-safe fallback)
+-- Create unique index on users.username if missing (safe non-concurrent create)
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'users') THEN
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = 'users' AND indexname = 'users_username_unique') THEN
-      BEGIN
-        -- CREATE INDEX CONCURRENTLY cannot run inside a transaction block; try CONCURRENTLY then fallback
-        EXECUTE 'CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS users_username_unique ON "users" ("username")';
-      EXCEPTION WHEN others THEN
-        EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON "users" ("username")';
-      END;
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND tablename = 'users' AND indexname = 'users_username_unique') THEN
+      -- Create index without CONCURRENTLY to avoid transaction issues; it's safe for one-off fix
+      EXECUTE 'CREATE UNIQUE INDEX users_username_unique ON public.users (username)';
     END IF;
   END IF;
 END$$;
---> statement-breakpoint
 
 -- Ensure attachments table exists (structure used by app cleanup)
 CREATE TABLE IF NOT EXISTS public.attachments (
-  id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+-- REMOVED ON SERVER: placeholder to disable this migration
   message_id text,
   file_name text NOT NULL,
   original_name text NOT NULL,
@@ -33,20 +27,20 @@ CREATE TABLE IF NOT EXISTS public.attachments (
   uploaded_at timestamp DEFAULT now(),
   expires_at timestamp
 );
---> statement-breakpoint
 
 -- Add FK from attachments.message_id -> messages.id if messages table exists
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname='messages') THEN
     BEGIN
-      ALTER TABLE IF EXISTS public.attachments ADD CONSTRAINT IF NOT EXISTS attachments_message_id_messages_id_fk FOREIGN KEY (message_id) REFERENCES public.messages(id) ON DELETE NO ACTION ON UPDATE NO ACTION;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'attachments_message_id_messages_id_fk') THEN
+        EXECUTE 'ALTER TABLE public.attachments ADD CONSTRAINT attachments_message_id_messages_id_fk FOREIGN KEY (message_id) REFERENCES public.messages(id) ON DELETE NO ACTION ON UPDATE NO ACTION';
+      END IF;
     EXCEPTION WHEN duplicate_object THEN
       -- ignore duplicate foreign key
     END;
   END IF;
 END$$;
---> statement-breakpoint
 
 -- Ensure chat_sessions and messages tables exist minimally (in case earlier migrations failed)
 CREATE TABLE IF NOT EXISTS public.chat_sessions (
@@ -57,7 +51,6 @@ CREATE TABLE IF NOT EXISTS public.chat_sessions (
   created_at timestamp DEFAULT now(),
   last_activity timestamp DEFAULT now()
 );
---> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS public.messages (
   id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -68,4 +61,3 @@ CREATE TABLE IF NOT EXISTS public.messages (
   is_read boolean DEFAULT false,
   created_at timestamp DEFAULT now()
 );
---> statement-breakpoint

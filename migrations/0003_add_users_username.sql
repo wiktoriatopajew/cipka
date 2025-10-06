@@ -1,1 +1,2 @@
 -- REMOVED ON SERVER: placeholder to disable this migration
+

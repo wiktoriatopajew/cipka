@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS referral_rewards (
 	FOREIGN KEY (referrer_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE NO ACTION,
 	FOREIGN KEY (referred_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE NO ACTION
 );
---> statement-breakpoint
-ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked boolean DEFAULT false;--> statement-breakpoint
-ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code text;--> statement-breakpoint
-ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by text;--> statement-breakpoint
+-- REMOVED ON SERVER: placeholder to disable migrations
+-- REMOVED ON SERVER: placeholder to disable migrations
+-- REMOVED ON SERVER: placeholder to disable migrations
 CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_unique ON users (referral_code);

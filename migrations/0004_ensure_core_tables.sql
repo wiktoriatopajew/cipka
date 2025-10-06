@@ -2,7 +2,7 @@
 -- This file is safe to run multiple times; it uses IF NOT EXISTS and checks for indexes.
 
 CREATE TABLE IF NOT EXISTS "users" (
-  "id" text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+-- REMOVED ON SERVER: placeholder to disable this migration
   "username" text NOT NULL,
   "password" text NOT NULL,
   "email" text,
@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS "users" (
   "last_seen" timestamp DEFAULT now(),
   "created_at" timestamp DEFAULT now()
 );
---> statement-breakpoint
 
 DO $$
 BEGIN
@@ -26,7 +25,6 @@ BEGIN
     EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_unique ON "users" ("referral_code")';
   END IF;
 END$$;
---> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS "chat_sessions" (
   "id" text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -36,7 +34,6 @@ CREATE TABLE IF NOT EXISTS "chat_sessions" (
   "created_at" timestamp DEFAULT now(),
   "last_activity" timestamp DEFAULT now()
 );
---> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS "messages" (
   "id" text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -47,7 +44,6 @@ CREATE TABLE IF NOT EXISTS "messages" (
   "is_read" boolean DEFAULT false,
   "created_at" timestamp DEFAULT now()
 );
---> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS "attachments" (
   "id" text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -60,7 +56,6 @@ CREATE TABLE IF NOT EXISTS "attachments" (
   "uploaded_at" timestamp DEFAULT now(),
   "expires_at" timestamp
 );
---> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS "subscriptions" (
   "id" text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -70,7 +65,6 @@ CREATE TABLE IF NOT EXISTS "subscriptions" (
   "purchased_at" timestamp DEFAULT now(),
   "expires_at" timestamp
 );
---> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS "referral_rewards" (
   "id" text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -84,7 +78,6 @@ CREATE TABLE IF NOT EXISTS "referral_rewards" (
   "created_at" timestamp DEFAULT now(),
   "awarded_at" timestamp
 );
---> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS "app_config" (
   "id" serial PRIMARY KEY NOT NULL,
@@ -112,23 +105,39 @@ CREATE TABLE IF NOT EXISTS "app_config" (
 -- Add foreign keys if the referenced tables exist
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname='messages') AND EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname='attachments') THEN
-    BEGIN
-      ALTER TABLE IF EXISTS "attachments" ADD CONSTRAINT IF NOT EXISTS attachments_message_id_messages_id_fk FOREIGN KEY ("message_id") REFERENCES "messages"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
-    EXCEPTION WHEN duplicate_object THEN
-      -- ignore
-    END;
+  -- attachments.message_id -> messages.id
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname='attachments') AND EXISTS (SELECT 1 FROM pg_class WHERE relname='messages') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'attachments_message_id_messages_id_fk') THEN
+      IF (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='attachments' AND column_name='message_id')
+         = (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='messages' AND column_name='id') THEN
+        ALTER TABLE public.attachments ADD CONSTRAINT attachments_message_id_messages_id_fk FOREIGN KEY (message_id) REFERENCES public.messages(id) ON DELETE NO ACTION ON UPDATE NO ACTION;
+      ELSE
+        RAISE NOTICE 'Skipping FK attachments.message_id -> messages.id due to incompatible types';
+      END IF;
+    END IF;
   END IF;
-  IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname='chat_sessions') AND EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname='users') THEN
-    BEGIN
-      ALTER TABLE IF EXISTS "chat_sessions" ADD CONSTRAINT IF NOT EXISTS chat_sessions_user_id_users_id_fk FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
-    EXCEPTION WHEN duplicate_object THEN
-    END;
+
+  -- chat_sessions.user_id -> users.id
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname='chat_sessions') AND EXISTS (SELECT 1 FROM pg_class WHERE relname='users') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chat_sessions_user_id_users_id_fk') THEN
+      IF (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='chat_sessions' AND column_name='user_id')
+         = (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='users' AND column_name='id') THEN
+        ALTER TABLE public.chat_sessions ADD CONSTRAINT chat_sessions_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE NO ACTION ON UPDATE NO ACTION;
+      ELSE
+        RAISE NOTICE 'Skipping FK chat_sessions.user_id -> users.id due to incompatible types';
+      END IF;
+    END IF;
   END IF;
-  IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname='messages') AND EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname='chat_sessions') THEN
-    BEGIN
-      ALTER TABLE IF EXISTS "messages" ADD CONSTRAINT IF NOT EXISTS messages_session_id_chat_sessions_id_fk FOREIGN KEY ("session_id") REFERENCES "chat_sessions"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
-    EXCEPTION WHEN duplicate_object THEN
-    END;
+
+  -- messages.session_id -> chat_sessions.id
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname='messages') AND EXISTS (SELECT 1 FROM pg_class WHERE relname='chat_sessions') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'messages_session_id_chat_sessions_id_fk') THEN
+      IF (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='messages' AND column_name='session_id')
+         = (SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='chat_sessions' AND column_name='id') THEN
+        ALTER TABLE public.messages ADD CONSTRAINT messages_session_id_chat_sessions_id_fk FOREIGN KEY (session_id) REFERENCES public.chat_sessions(id) ON DELETE NO ACTION ON UPDATE NO ACTION;
+      ELSE
+        RAISE NOTICE 'Skipping FK messages.session_id -> chat_sessions.id due to incompatible types';
+      END IF;
+    END IF;
   END IF;
 END$$;
