@@ -38,6 +38,6 @@ async function initializeDatabase() {
 }
 
 // Initialize database
-initializeDatabase().catch(console.error);
 
-export { db };
+const dbReady = initializeDatabase().then(() => db);
+export { db, dbReady };

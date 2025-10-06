@@ -212,7 +212,13 @@ app.use((req, res, next) => {
   next();
 });
 
+
+import { dbReady } from "./db";
+
 (async () => {
+  // Wait for database migrations to complete before starting the server
+  await dbReady;
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
