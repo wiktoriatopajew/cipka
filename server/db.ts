@@ -21,6 +21,14 @@ async function initializeDatabase() {
     
     // Run migrations on startup
     console.log('🔄 Running PostgreSQL migrations...');
+    // Debug: list migration files to help track down syntax errors
+    try {
+      const fs = await import('fs');
+      const migrationFiles = fs.readdirSync('./migrations').filter(f => f.endsWith('.sql') || f.endsWith('.js') || f.endsWith('.cjs'));
+      console.log('Migration files found:', migrationFiles);
+    } catch (e) {
+      console.warn('Could not list migrations folder:', e);
+    }
     try {
       await migrate(db, { migrationsFolder: './migrations' });
       console.log('✅ PostgreSQL migrations completed!');

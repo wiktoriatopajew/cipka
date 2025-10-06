@@ -85,10 +85,7 @@ const cleanupExpiredFiles = async () => {
 };
 
 // Run cleanup on startup
-cleanupExpiredFiles();
-
-// Schedule cleanup to run every 24 hours (86400000 ms)
-setInterval(cleanupExpiredFiles, 86400000);
+// NOTE: cleanupExpiredFiles and cleanupInactiveUsers are started after DB is ready below
 
 // Function to clean up inactive users (mark as offline)
 const cleanupInactiveUsers = async () => {
@@ -119,8 +116,7 @@ const cleanupInactiveUsers = async () => {
   }
 };
 
-// Run inactive users cleanup every 2 minutes
-setInterval(cleanupInactiveUsers, 2 * 60 * 1000);
+// NOTE: inactive users cleanup scheduler is started after DB is ready below
 
 // Security headers with Helmet - simplified for development
 if (process.env.NODE_ENV === 'production') {
