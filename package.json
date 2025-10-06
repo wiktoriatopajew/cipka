@@ -10,7 +10,7 @@
     "install:auto": "powershell -ExecutionPolicy Bypass -File install.ps1",
     "dev": "cross-env NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "railway:build": "npm run build && npm run db:migrate",
+  "railway:build": "npm run build",
     "railway:deploy": "railway up",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "start:prod": "pm2 start ecosystem.config.js --env production",
@@ -24,7 +24,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:test": "tsx scripts/test-db.ts",
     "test:email": "tsx scripts/test-email.ts",
-    "deploy:setup": "npm install && npm run build && npm run db:migrate",
+  "deploy:setup": "npm install && npm run build",
     "backup": "tsx scripts/backup.ts"
   },
   "dependencies": {
