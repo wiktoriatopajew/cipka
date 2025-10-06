@@ -2,8 +2,8 @@
 # This file tells Railway how to build and deploy your app
 
 [build]
-  # Build command - include migrations
-  command = "npm run build && npx drizzle-kit migrate --config=drizzle.config.production.ts"
+  # Build command - just build, migrations run at startup
+  command = "npm run build"
   
   # Force Node.js buildpack
   builder = "NIXPACKS"
