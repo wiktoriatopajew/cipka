@@ -30,9 +30,6 @@ if (process.env.STRIPE_SECRET_KEY) {
 // Export stripe for use in routes
 export { stripe };
 
-// Initialize admin user after environment variables are loaded
-storage.initAdminUser();
-
 // Initialize email after environment variables are loaded
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {
   // Test SMTP connection
@@ -218,6 +215,9 @@ import { dbReady } from "./db";
 (async () => {
   // Wait for database migrations to complete before starting the server
   await dbReady;
+
+  // Initialize admin user after database is ready
+  storage.initAdminUser();
 
   const server = await registerRoutes(app);
 
