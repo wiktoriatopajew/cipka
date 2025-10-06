@@ -2,8 +2,8 @@
 # This file tells Railway how to build and deploy your app
 
 [build]
-  # Build command
-  command = "npm run railway:build"
+  # Build command - simplified for Railway
+  command = "npm run build"
 
 [deploy]
   # Start command
