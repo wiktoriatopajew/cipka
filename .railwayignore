@@ -1,0 +1,12 @@
+# Ignore Python files for Railway deployment
+requirements.txt
+*.py
+python-scripts/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/

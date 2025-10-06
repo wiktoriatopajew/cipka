@@ -4,6 +4,9 @@
 [build]
   # Build command - simplified for Railway
   command = "npm run build"
+  
+  # Force Node.js buildpack
+  builder = "NIXPACKS"
 
 [deploy]
   # Start command
