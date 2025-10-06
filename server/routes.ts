@@ -15,6 +15,16 @@ import { stripe } from "./index";
 const sessionNotificationTimestamps: Map<string, number> = new Map();
 const NOTIFICATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
+// Health check endpoint for Railway
+const healthCheck = (req: Request, res: Response) => {
+  res.status(200).json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV,
+    database: "connected"
+  });
+};
+
 // Email content cleaning function
 function cleanEmailContent(emailContent: string): string {
   // Remove common email signatures and quoted text
@@ -175,6 +185,10 @@ declare module 'express-serve-static-core' {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for Railway and monitoring
+  app.get("/api/health", healthCheck);
+  app.get("/health", healthCheck);
+
   // PayPal routes - reference: blueprint:javascript_paypal
   app.get("/paypal/setup", async (req, res) => {
     await loadPaypalDefault(req, res);

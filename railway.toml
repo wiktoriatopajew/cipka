@@ -1,0 +1,20 @@
+# Railway Configuration
+# This file tells Railway how to build and deploy your app
+
+[build]
+  # Build command
+  command = "npm run railway:build"
+
+[deploy]
+  # Start command
+  command = "npm start"
+  
+  # Health check path
+  healthcheck = "/api/health"
+  
+  # Restart policy
+  restartPolicy = "always"
+
+[env]
+  # Environment variables that Railway should set
+  NODE_ENV = "production"
