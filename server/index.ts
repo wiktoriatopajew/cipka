@@ -215,6 +215,16 @@ import { dbReady } from "./db";
   // Initialize admin user after database is ready
   storage.initAdminUser();
 
+  // Start background jobs that require DB only after db is ready
+  // Run cleanup on startup
+  cleanupExpiredFiles();
+  // Schedule cleanup to run every 24 hours (86400000 ms)
+  setInterval(cleanupExpiredFiles, 86400000);
+
+  // Run inactive users cleanup every 2 minutes
+  cleanupInactiveUsers();
+  setInterval(cleanupInactiveUsers, 2 * 60 * 1000);
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
