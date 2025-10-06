@@ -71,6 +71,14 @@ async function initializeDatabase() {
         console.error('❌ Emergency fixes failed:', innerErr);
       }
     }
+
+    // Debug: print applied migrations from __drizzle_migrations (if exists)
+    try {
+      const applied = await client`SELECT id, name, hash, created_at FROM __drizzle_migrations ORDER BY created_at`;
+      console.log('Applied migrations rows:', applied);
+    } catch (e) {
+      console.warn('Could not read __drizzle_migrations table:', String(e));
+    }
     
     console.log('🐘 Connected to PostgreSQL database');
   } else {
