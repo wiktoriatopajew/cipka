@@ -19,21 +19,22 @@ async function initializeDatabase() {
     const client = postgres(process.env.DATABASE_URL);
     db = drizzlePg(client, { schema });
     
-    // Run migrations on startup
-    console.log('🔄 Running PostgreSQL migrations...');
-    // Debug: list migration files to help track down syntax errors
-    try {
-      const fs = await import('fs');
-      const migrationFiles = fs.readdirSync('./migrations').filter(f => f.endsWith('.sql') || f.endsWith('.js') || f.endsWith('.cjs'));
-      console.log('Migration files found:', migrationFiles);
-    } catch (e) {
-      console.warn('Could not list migrations folder:', e);
-    }
-    try {
-      await migrate(db, { migrationsFolder: './migrations' });
-      console.log('✅ PostgreSQL migrations completed!');
-    } catch (error) {
-      console.error('❌ Migration failed:', error);
+    // Run migrations on startup (can be disabled via DISABLE_MIGRATIONS=1)
+    if (!process.env.DISABLE_MIGRATIONS) {
+      console.log('🔄 Running PostgreSQL migrations...');
+      // Debug: list migration files to help track down syntax errors
+      try {
+        const fs = await import('fs');
+        const migrationFiles = fs.readdirSync('./migrations').filter(f => f.endsWith('.sql') || f.endsWith('.js') || f.endsWith('.cjs'));
+        console.log('Migration files found:', migrationFiles);
+      } catch (e) {
+        console.warn('Could not list migrations folder:', e);
+      }
+      try {
+        await migrate(db, { migrationsFolder: './migrations' });
+        console.log('✅ PostgreSQL migrations completed!');
+      } catch (error) {
+        console.error('❌ Migration failed:', error);
       // Attempt a safe, idempotent fix: create essential tables/columns used during startup
       try {
         console.log('⚠️  Attempting emergency SQL fixes (idempotent) to recover from failed migrations...');
@@ -70,6 +71,9 @@ async function initializeDatabase() {
       } catch (innerErr) {
         console.error('❌ Emergency fixes failed:', innerErr);
       }
+      }
+    } else {
+      console.log('⏭️  PostgreSQL migrations are disabled by DISABLE_MIGRATIONS=1');
     }
 
     // Debug: print applied migrations from __drizzle_migrations (if exists)
