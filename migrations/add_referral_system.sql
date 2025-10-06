@@ -1,9 +1,12 @@
--- Add referral columns to users table
-ALTER TABLE users ADD COLUMN referral_code TEXT UNIQUE;
-ALTER TABLE users ADD COLUMN referred_by TEXT;
+-- Ensure pgcrypto or functions for randomness are available (optional)
+-- CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Create referral_rewards table
-CREATE TABLE referral_rewards (
+-- Add referral columns to users table (use appropriate types for Postgres)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by TEXT;
+
+-- Create referral_rewards table (Postgres-friendly types)
+CREATE TABLE IF NOT EXISTS referral_rewards (
   id TEXT PRIMARY KEY,
   referrer_id TEXT REFERENCES users(id),
   referred_id TEXT REFERENCES users(id),
@@ -12,11 +15,15 @@ CREATE TABLE referral_rewards (
   status TEXT DEFAULT 'pending',
   required_referrals INTEGER DEFAULT 3,
   current_referrals INTEGER DEFAULT 0,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  awarded_at TEXT
+  created_at TIMESTAMP DEFAULT now(),
+  awarded_at TIMESTAMP
 );
 
--- Generate referral codes for existing users
-UPDATE users 
-SET referral_code = LOWER(HEX(RANDOMBLOB(4))) 
+-- Generate referral codes for existing users (Postgres-safe)
+-- Use an MD5-based short hex string to avoid SQLite-specific RANDOMBLOB/HEX
+UPDATE users
+SET referral_code = lower(substring(md5(random()::text), 1, 8))
 WHERE referral_code IS NULL;
+
+-- Create unique index on referral_code
+CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_unique ON users (referral_code);
