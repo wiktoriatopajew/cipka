@@ -130,8 +130,8 @@ export class MemStorage implements IStorage {
         isOnline: false,
         referralCode: null,
         referredBy: null,
-        lastSeen: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
+        lastSeen: new Date(),
+        createdAt: new Date(),
         isBlocked: false,
       };
       this.users.set(adminUser.id, adminUser);
@@ -152,8 +152,8 @@ export class MemStorage implements IStorage {
       isOnline: false,
       referralCode: null,
       referredBy: null,
-      lastSeen: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
+      lastSeen: new Date(),
+      createdAt: new Date(),
       isBlocked: false,
     };
     this.users.set(testUser.id, testUser);
@@ -193,8 +193,8 @@ export class MemStorage implements IStorage {
       hasSubscription: false,
       isOnline: false,
       referredBy: null,
-      lastSeen: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
+      lastSeen: new Date(),
+      createdAt: new Date(),
       isBlocked: false,
     };
     this.users.set(id, user);
@@ -231,8 +231,8 @@ export class MemStorage implements IStorage {
       status: insertSubscription.status || "active",
       userId: insertSubscription.userId || null,
       amount: insertSubscription.amount || null,
-      purchasedAt: new Date().toISOString(),
-      expiresAt: insertSubscription.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+      purchasedAt: new Date(),
+      expiresAt: insertSubscription.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     };
     this.subscriptions.set(id, subscription);
     
@@ -279,8 +279,8 @@ export class MemStorage implements IStorage {
       status: insertSession.status || "active",
       userId: insertSession.userId || null,
       vehicleInfo: insertSession.vehicleInfo || null,
-      createdAt: new Date().toISOString(),
-      lastActivity: new Date().toISOString(),
+      createdAt: new Date(),
+      lastActivity: new Date(),
     };
     this.chatSessions.set(id, session);
     return session;
@@ -306,7 +306,7 @@ export class MemStorage implements IStorage {
     const session = this.chatSessions.get(id);
     if (!session) return undefined;
     
-    const updatedSession = { ...session, ...updates, lastActivity: new Date().toISOString() };
+    const updatedSession = { ...session, ...updates, lastActivity: new Date() };
     this.chatSessions.set(id, updatedSession);
     return updatedSession;
   }
@@ -321,7 +321,7 @@ export class MemStorage implements IStorage {
       senderId: insertMessage.senderId || null,
       senderType: insertMessage.senderType || null,
       isRead: insertMessage.isRead || false,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     };
     this.messages.set(id, message);
     
@@ -381,8 +381,8 @@ export class MemStorage implements IStorage {
       ...insertAttachment,
       id,
       messageId: insertAttachment.messageId || null,
-      uploadedAt: new Date().toISOString(),
-      expiresAt: expiresAt.toISOString(),
+      uploadedAt: new Date(),
+      expiresAt: expiresAt,
     };
     this.attachments.set(id, attachment);
     return attachment;
@@ -450,7 +450,7 @@ export class MemStorage implements IStorage {
       requiredReferrals: reward.requiredReferrals || 3,
       currentReferrals: reward.currentReferrals || 0,
       rewardCycle: reward.rewardCycle || 1,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
       awardedAt: null,
     };
     return newReward;
@@ -773,7 +773,7 @@ export class PostgresStorage implements IStorage {
     // Update chat session lastActivity
     if (message.sessionId) {
       await db.update(chatSessions)
-        .set({ lastActivity: new Date().toISOString() })
+        .set({ lastActivity: new Date() })
         .where(eq(chatSessions.id, message.sessionId));
     }
     
@@ -828,7 +828,7 @@ export class PostgresStorage implements IStorage {
     
     const result = await db.insert(attachments).values({
       ...attachment,
-      expiresAt: expiresAt.toISOString(),
+      expiresAt: expiresAt,
     }).returning();
     return result[0];
   }
@@ -855,13 +855,13 @@ export class PostgresStorage implements IStorage {
   }
 
   async getExpiredAttachments(): Promise<Attachment[]> {
-    const now = new Date().toISOString();
+    const now = new Date();
     return await db.select().from(attachments)
       .where(lt(attachments.expiresAt, now));
   }
 
   async deleteExpiredAttachments(): Promise<void> {
-    const now = new Date().toISOString();
+    const now = new Date();
     await db.delete(attachments).where(lt(attachments.expiresAt, now));
   }
 
@@ -898,7 +898,7 @@ export class PostgresStorage implements IStorage {
     const newReward = {
       ...reward,
       id,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     };
     
     await db.insert(referralRewards).values(newReward);
@@ -974,7 +974,7 @@ export class PostgresStorage implements IStorage {
     await db.update(referralRewards)
       .set({ 
         status: "awarded",
-        awardedAt: new Date().toISOString()
+        awardedAt: new Date()
       })
       .where(eq(referralRewards.id, rewardId));
     
@@ -1003,7 +1003,7 @@ export class PostgresStorage implements IStorage {
         
         // Update existing subscription expiry date
         await db.update(subscriptions)
-          .set({ expiresAt: newExpiryDate.toISOString() })
+          .set({ expiresAt: newExpiryDate })
           .where(eq(subscriptions.id, existingSubscription[0].id));
       } else {
         // User has no active subscription - create new one
@@ -1014,7 +1014,7 @@ export class PostgresStorage implements IStorage {
           userId: reward[0].referrerId,
           amount: 0, // Free subscription
           status: "active",
-          expiresAt: expiresAt.toISOString()
+          expiresAt: expiresAt
         });
       }
       
@@ -1044,7 +1044,7 @@ export class PostgresStorage implements IStorage {
         newExpiryDate.setDate(newExpiryDate.getDate() + days);
         
         await db.update(subscriptions)
-          .set({ expiresAt: newExpiryDate.toISOString() })
+          .set({ expiresAt: newExpiryDate })
           .where(eq(subscriptions.id, activeSubscription[0].id));
 
         return { 
@@ -1146,7 +1146,7 @@ export class PostgresStorage implements IStorage {
         await db.update(googleAdsConfig)
           .set({
             ...config,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date()
           })
           .where(eq(googleAdsConfig.id, existingConfig.id));
       } else {
@@ -1217,7 +1217,7 @@ export class PostgresStorage implements IStorage {
         const result = await db.update(appConfig)
           .set({
             ...config,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date()
           })
           .where(eq(appConfig.id, existingConfig[0].id))
           .returning();
@@ -1227,7 +1227,7 @@ export class PostgresStorage implements IStorage {
         const result = await db.insert(appConfig).values({
           ...config,
           id: 1,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date()
         }).returning();
         return result[0];
       }
@@ -1243,7 +1243,7 @@ export class PostgresStorage implements IStorage {
       await db.insert(analyticsEvents).values({
         ...event,
         id: crypto.randomUUID(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date()
       });
     } catch (error) {
       console.error('Error tracking event:', error);
@@ -1278,8 +1278,8 @@ export class PostgresStorage implements IStorage {
         .from(users)
         .where(
           and(
-            gte(users.createdAt, start.toISOString()),
-            lte(users.createdAt, end.toISOString())
+            gte(users.createdAt, start),
+            lte(users.createdAt, end)
           )
         );
 
@@ -1288,8 +1288,8 @@ export class PostgresStorage implements IStorage {
         .from(subscriptions)
         .where(
           and(
-            gte(subscriptions.purchasedAt, start.toISOString()),
-            lte(subscriptions.purchasedAt, end.toISOString())
+            gte(subscriptions.purchasedAt, start),
+            lte(subscriptions.purchasedAt, end)
           )
         );
 
