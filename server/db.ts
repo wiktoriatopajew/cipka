@@ -26,6 +26,42 @@ async function initializeDatabase() {
       console.log('✅ PostgreSQL migrations completed!');
     } catch (error) {
       console.error('❌ Migration failed:', error);
+      // Attempt a safe, idempotent fix: create essential tables/columns used during startup
+      try {
+        console.log('⚠️  Attempting emergency SQL fixes (idempotent) to recover from failed migrations...');
+        await client`ALTER TABLE IF EXISTS public.users ADD COLUMN IF NOT EXISTS username text;`;
+        await client`CREATE TABLE IF NOT EXISTS public.attachments (
+          id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+          message_id text,
+          file_name text NOT NULL,
+          original_name text NOT NULL,
+          file_size integer NOT NULL,
+          mime_type text NOT NULL,
+          file_path text NOT NULL,
+          uploaded_at timestamp DEFAULT now(),
+          expires_at timestamp
+        );`;
+        await client`CREATE TABLE IF NOT EXISTS public.chat_sessions (
+          id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+          user_id text,
+          vehicle_info text,
+          status text DEFAULT 'active',
+          created_at timestamp DEFAULT now(),
+          last_activity timestamp DEFAULT now()
+        );`;
+        await client`CREATE TABLE IF NOT EXISTS public.messages (
+          id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+          session_id text,
+          sender_id text,
+          sender_type text,
+          content text NOT NULL,
+          is_read boolean DEFAULT false,
+          created_at timestamp DEFAULT now()
+        );`;
+        console.log('✅ Emergency SQL fixes applied (best-effort).');
+      } catch (innerErr) {
+        console.error('❌ Emergency fixes failed:', innerErr);
+      }
     }
     
     console.log('🐘 Connected to PostgreSQL database');
