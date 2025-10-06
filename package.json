@@ -20,6 +20,7 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:postgres": "tsx scripts/migrate-postgres.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:test": "tsx scripts/test-db.ts",
     "test:email": "tsx scripts/test-email.ts",
