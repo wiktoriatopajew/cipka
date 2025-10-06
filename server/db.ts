@@ -1,7 +1,6 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import * as schema from "@shared/schema";
 
@@ -19,62 +18,8 @@ async function initializeDatabase() {
     const client = postgres(process.env.DATABASE_URL);
     db = drizzlePg(client, { schema });
     
-    // Run migrations on startup (can be disabled via DISABLE_MIGRATIONS=1)
-    if (!process.env.DISABLE_MIGRATIONS) {
-      console.log('🔄 Running PostgreSQL migrations...');
-      // Debug: list migration files to help track down syntax errors
-      try {
-        const fs = await import('fs');
-        const migrationFiles = fs.readdirSync('./migrations').filter(f => f.endsWith('.sql') || f.endsWith('.js') || f.endsWith('.cjs'));
-        console.log('Migration files found:', migrationFiles);
-      } catch (e) {
-        console.warn('Could not list migrations folder:', e);
-      }
-      try {
-        await migrate(db, { migrationsFolder: './migrations' });
-        console.log('✅ PostgreSQL migrations completed!');
-      } catch (error) {
-        console.error('❌ Migration failed:', error);
-      // Attempt a safe, idempotent fix: create essential tables/columns used during startup
-      try {
-        console.log('⚠️  Attempting emergency SQL fixes (idempotent) to recover from failed migrations...');
-        await client`ALTER TABLE IF EXISTS public.users ADD COLUMN IF NOT EXISTS username text;`;
-        await client`CREATE TABLE IF NOT EXISTS public.attachments (
-          id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-          message_id text,
-          file_name text NOT NULL,
-          original_name text NOT NULL,
-          file_size integer NOT NULL,
-          mime_type text NOT NULL,
-          file_path text NOT NULL,
-          uploaded_at timestamp DEFAULT now(),
-          expires_at timestamp
-        );`;
-        await client`CREATE TABLE IF NOT EXISTS public.chat_sessions (
-          id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-          user_id text,
-          vehicle_info text,
-          status text DEFAULT 'active',
-          created_at timestamp DEFAULT now(),
-          last_activity timestamp DEFAULT now()
-        );`;
-        await client`CREATE TABLE IF NOT EXISTS public.messages (
-          id text PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-          session_id text,
-          sender_id text,
-          sender_type text,
-          content text NOT NULL,
-          is_read boolean DEFAULT false,
-          created_at timestamp DEFAULT now()
-        );`;
-        console.log('✅ Emergency SQL fixes applied (best-effort).');
-      } catch (innerErr) {
-        console.error('❌ Emergency fixes failed:', innerErr);
-      }
-      }
-    } else {
-      console.log('⏭️  PostgreSQL migrations are disabled by DISABLE_MIGRATIONS=1');
-    }
+    // Migrations are permanently disabled. No migration logic will run.
+    console.log('⏭️  PostgreSQL migrations are permanently disabled in db.ts.');
 
     // Debug: print applied migrations from __drizzle_migrations (if exists)
     try {
