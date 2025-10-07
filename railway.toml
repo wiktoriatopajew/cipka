@@ -13,10 +13,13 @@
   command = "npm start"
   
   # Health check path
-  healthcheck = "/"
+  healthcheck = "/api/health"
   
   # Restart policy
   restartPolicy = "always"
+  
+  # Port override
+  port = 5000
 
 [env]
   # Environment variables that Railway should set

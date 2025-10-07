@@ -1,7 +1,0 @@
-# Railway frontend service (Vite/React)
-[build]
-command = "npm install && npm run build"
-builder = "NIXPACKS"
-
-[static]
-directory = "dist"

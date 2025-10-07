@@ -8,6 +8,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { sendUserLoginNotification, sendFirstMessageNotification, sendChatActivityNotification, sendContactFormEmail } from "./email";
+import { fileURLToPath } from "url";
+
+// ES modules equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal-wrapper";
 import { stripe } from "./index";
 
@@ -370,9 +375,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Authentication
   app.post("/api/admin/login", authRateLimit, async (req, res) => {
     try {
+      console.log("Admin login attempt:", req.body);
+      
       // Validate request body
       const result = loginSchema.safeParse(req.body);
       if (!result.success) {
+        console.log("Login schema validation failed:", result.error);
         return res.status(400).json({ 
           error: "Invalid login data", 
           details: result.error.issues 
@@ -380,26 +388,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { email, password } = result.data;
+      console.log("Attempting login for:", email);
 
       const user = await storage.verifyPassword(email, password);
+      console.log("User found:", user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : null);
       
       if (!user || !user.isAdmin) {
+        console.log("Admin login failed - invalid credentials or not admin");
         return res.status(401).json({ error: "Invalid admin credentials" });
       }
 
-      // Update online status
-      await storage.updateUser(user.id, { isOnline: true, lastSeen: new Date().toISOString() });
+      console.log("Admin verified, skipping status update for SQLite compatibility...");
+      // Skip updateUser entirely for SQLite to avoid PostgreSQL timestamp issues
 
+      console.log("Regenerating session...");
       // Regenerate session to prevent session fixation
       req.session.regenerate((err: any) => {
         if (err) {
+          console.error("Session regeneration error:", err);
           return res.status(500).json({ error: "Session regeneration failed" });
         }
         
+        console.log("Session regenerated, storing admin data...");
         // Store admin session
         req.session.adminId = user.id;
         req.session.isAdmin = true;
 
+        console.log("Admin login successful");
         res.json({ 
           success: true, 
           admin: { 
@@ -410,6 +425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
     } catch (error) {
+      console.error("Admin login error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });
@@ -434,10 +450,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       // Update admin's online status and last activity
-      await storage.updateUser(req.session.adminId, { 
-        isOnline: true,
-        lastSeen: new Date().toISOString()
-      });
+      // Commented out for SQLite compatibility - skipping status update
+      // await storage.updateUser(req.session.adminId, { 
+      //   isOnline: true,
+      //   lastSeen: new Date().toISOString()
+      // });
+      console.log("Admin heartbeat - skipping status update for SQLite compatibility...");
       res.json({ success: true });
     } catch (error) {
       console.error("Heartbeat error:", error);
@@ -661,9 +679,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Real-time data endpoint
   app.get("/api/admin/live-data", requireAdmin, async (req, res) => {
     try {
+      console.log("Live-data: Fetching unread messages...");
       const unreadMessages = await storage.getAllUnreadMessages();
+      
+      console.log("Live-data: Fetching active sessions...");
       const activeSessions = await storage.getAllActiveChatSessions();
-      const onlineUsers = (await storage.getAllUsers()).filter(u => u.isOnline && !u.isAdmin);
+      
+      console.log("Live-data: Fetching all users...");
+      const allUsers = await storage.getAllUsers();
+      
+      console.log("Live-data: Filtering online users...");
+      const onlineUsers = allUsers.filter(u => u.isOnline && !u.isAdmin);
 
       res.json({
         unreadCount: unreadMessages.length,
@@ -672,6 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastUpdate: new Date().toISOString()
       });
     } catch (error) {
+      console.error("Live-data error:", error);
       res.status(500).json({ error: "Failed to fetch live data" });
     }
   });

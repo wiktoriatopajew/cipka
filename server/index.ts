@@ -5,6 +5,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import helmet from "helmet";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
@@ -239,9 +240,17 @@ import { dbReady } from "./db";
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
+    console.log("Setting up Vite for development...");
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    console.log("Setting up static file serving for production...");
+    try {
+      serveStatic(app);
+      console.log("Static file serving configured successfully");
+    } catch (error) {
+      console.error("Failed to configure static file serving:", error);
+      throw error;
+    }
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
@@ -249,6 +258,12 @@ import { dbReady } from "./db";
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+  const host = process.env.NODE_ENV === 'production' ? "0.0.0.0" : "localhost";
+  
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`Port: ${port}`);
+  console.log(`Host: ${host}`);
+  console.log(`Frontend dist path: ${path.resolve(import.meta.dirname, "..", "dist", "public")}`);
   
   // Add global error handlers
   process.on('uncaughtException', (err) => {
@@ -261,8 +276,8 @@ import { dbReady } from "./db";
   
   server.listen({
     port,
-    host: "localhost",
+    host,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on port ${port}, host: ${host}`);
   });
 })();
