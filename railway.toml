@@ -1,9 +1,10 @@
 # Railway Configuration
 # This file tells Railway how to build and deploy your app
 
+# Railway backend service (Node.js/Express)
 [build]
   # Build command - just build, migrations run at startup
-  command = "cd client && npm install && npm run build && cd .. && npm run build"
+  command = "npm install && npm run build"
   
   # Force Node.js buildpack
   builder = "NIXPACKS"
@@ -13,7 +14,7 @@
   command = "npm start"
   
   # Health check path
-  healthcheck = "/"
+  healthcheck = "/api/health"
   
   # Restart policy
   restartPolicy = "always"
