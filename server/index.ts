@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express, { type Request, Response, NextFunction } from "express";
+import path from 'path';
+import { fileURLToPath } from 'url';
 import session from "express-session";
 import MemoryStore from "memorystore";
 import helmet from "helmet";
@@ -44,6 +46,15 @@ if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       },
     });
     
+// Serve static frontend files from client/dist
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendPath = path.join(__dirname, '../client/dist');
+app.use(express.static(frontendPath));
+
+// SPA fallback for React Router
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
     testTransporter.verify((error: Error | null, success: boolean) => {
       if (error) {
         console.log('Email configuration error:', error);

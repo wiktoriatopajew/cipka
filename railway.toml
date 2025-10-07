@@ -3,7 +3,7 @@
 
 [build]
   # Build command - just build, migrations run at startup
-  command = "npm run build"
+  command = "cd client && npm install && npm run build && cd .. && npm run build"
   
   # Force Node.js buildpack
   builder = "NIXPACKS"
@@ -13,7 +13,7 @@
   command = "npm start"
   
   # Health check path
-  healthcheck = "/api/health"
+  healthcheck = "/"
   
   # Restart policy
   restartPolicy = "always"
