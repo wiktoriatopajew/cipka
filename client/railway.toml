@@ -1,0 +1,12 @@
+# Railway Configuration for Vite/React frontend
+[build]
+  command = "npm run build"
+  builder = "NIXPACKS"
+
+[deploy]
+  command = "npx serve dist"
+  healthcheck = "/"
+  restartPolicy = "always"
+
+[static]
+  directory = "dist"
