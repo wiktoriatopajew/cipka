@@ -68,14 +68,17 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "..", "client", "dist");
+  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
 
   if (!fs.existsSync(distPath)) {
+    console.error(`Frontend build directory not found: ${distPath}`);
+    console.error('Please run: npm run build');
     throw new Error(
       `Could not find the frontend build directory: ${distPath}, make sure to build the client first`,
     );
   }
 
+  console.log(`✅ Serving frontend from: ${distPath}`);
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist

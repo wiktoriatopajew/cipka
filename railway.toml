@@ -2,8 +2,8 @@
 # This file tells Railway how to build and deploy your app
 
 [build]
-  # Build frontend first, then backend
-  command = "cd client && npm install && npm run build && cd .. && npm install && npm run build"
+  # Build frontend and backend
+  command = "npm install && npm run build"
   
   # Force Node.js buildpack
   builder = "NIXPACKS"
