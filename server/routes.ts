@@ -2191,7 +2191,7 @@ Test sent at: ${new Date().toLocaleString()}
     } catch (error) {
       console.error("Failed to get public app config:", error);
       const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://automentor-3.onrender.com' 
+        ? 'https://cipka.onrender.com' 
         : 'http://localhost:5000';
         
       res.json({
