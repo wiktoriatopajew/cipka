@@ -193,6 +193,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint for Railway and monitoring
   app.get("/api/health", healthCheck);
   app.get("/health", healthCheck);
+  
+  // File storage info endpoint
+  app.get("/api/storage-info", (req, res) => {
+    const isRender = process.env.RENDER === 'true';
+    const uploadDir = path.resolve('uploads');
+    const uploadsExist = fs.existsSync(uploadDir);
+    
+    let fileCount = 0;
+    if (uploadsExist) {
+      try {
+        fileCount = fs.readdirSync(uploadDir).length;
+      } catch (error) {
+        fileCount = 0;
+      }
+    }
+    
+    res.json({
+      platform: isRender ? 'Render' : 'Local',
+      uploadsDirectory: uploadDir,
+      uploadsExist,
+      fileCount,
+      isPersistent: !isRender,
+      message: isRender 
+        ? "⚠️ Files are not persistent on Render. They reset after each deployment. Consider using external storage (AWS S3, Cloudinary)."
+        : "✅ Local storage - files are persistent"
+    });
+  });
 
   // PayPal routes - reference: blueprint:javascript_paypal
   app.get("/paypal/setup", async (req, res) => {
@@ -758,7 +785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: file.mimetype,
         fileSize: file.size,
         filePath: file.path,
-        expiresAt: expiresAt.toISOString()
+        expiresAt: expiresAt
       });
 
       res.json({
@@ -972,7 +999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update online status
-      await storage.updateUser(user.id, { isOnline: true, lastSeen: new Date().toISOString() });
+      await storage.updateUser(user.id, { isOnline: true, lastSeen: new Date() });
 
       // Send login notification email
       try {
@@ -1261,7 +1288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.session.userId,
         amount: SUBSCRIPTION_AMOUNT,
         status: "active",
-        expiresAt: expiresAt.toISOString()
+        expiresAt: expiresAt
       });
       
       // Update user hasSubscription flag
@@ -1581,7 +1608,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize: req.file.size,
         mimeType: req.file.mimetype,
         filePath: req.file.path,
-        expiresAt: expiresAt.toISOString(),
+        expiresAt: expiresAt,
       });
       
       res.json({ message, attachment });
@@ -1606,7 +1633,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if file exists
       if (!fs.existsSync(filePath)) {
         console.log(`File not found at: ${path.resolve(filePath)}`);
-        return res.status(404).json({ error: "File not found" });
+        return res.status(404).json({ 
+          error: "File not found", 
+          message: "Files are not persistent on Render. Please re-upload." 
+        });
       }
       
       // Get attachment info to verify access
@@ -1615,13 +1645,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`No attachment record found for: ${filename}`);
         console.log(`Available attachments in DB might not be migrated properly`);
         
-        // For development, allow serving files without DB record
-        if (process.env.NODE_ENV !== 'production') {
-          console.log(`Development mode: serving file without DB record`);
+        // For development OR if file exists physically, allow serving
+        if (process.env.NODE_ENV !== 'production' || fs.existsSync(filePath)) {
+          console.log(`Serving file without DB record (file exists physically)`);
           return res.sendFile(path.resolve(filePath));
         }
         
-        return res.status(404).json({ error: "File not found" });
+        return res.status(404).json({ 
+          error: "File not found", 
+          message: "File record missing from database. File may have been uploaded before migration." 
+        });
       }
       
       // Check if file has expired
@@ -1790,7 +1823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const updatedUser = await storage.updateUser(req.user.id, { 
         isOnline: true, 
-        lastSeen: new Date().toISOString() 
+        lastSeen: new Date()
       });
       
       if (!updatedUser) {
