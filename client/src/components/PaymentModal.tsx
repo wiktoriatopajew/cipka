@@ -162,9 +162,9 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
     if (stripePublicKey && (window as any).Stripe) {
       const stripe = (window as any).Stripe(stripePublicKey);
       setStripeInstance(stripe);
-      console.log('Stripe initialized in frontend');
+      console.log('✅ Stripe initialized in frontend with key:', stripePublicKey.substring(0, 20) + '...');
     } else {
-      console.log('Stripe NOT initialized:', { 
+      console.log('❌ Stripe NOT initialized:', { 
         hasKey: !!stripePublicKey, 
         hasStripe: !!(window as any).Stripe 
       });
@@ -387,6 +387,14 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
 
   // Fetch Stripe client secret when card payment is selected and email is provided
   useEffect(() => {
+    console.log("🔍 Payment intent useEffect triggered:", {
+      paymentMethod,
+      email: !!email,
+      step,
+      open,
+      clientSecret: !!clientSecret
+    });
+    
     // Only create payment intent if we don't already have one
     if (paymentMethod === "card" && email && step === "payment" && open && !clientSecret) {
       console.log("Creating payment intent for amount:", currentPrice);
