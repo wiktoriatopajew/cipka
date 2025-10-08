@@ -1613,6 +1613,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attachment = await storage.getAttachmentByFilename(filename);
       if (!attachment) {
         console.log(`No attachment record found for: ${filename}`);
+        console.log(`Available attachments in DB might not be migrated properly`);
+        
+        // For development, allow serving files without DB record
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`Development mode: serving file without DB record`);
+          return res.sendFile(path.resolve(filePath));
+        }
+        
         return res.status(404).json({ error: "File not found" });
       }
       

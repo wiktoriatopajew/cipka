@@ -407,7 +407,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           });
         });
     }
-  }, [paymentMethod, email, step, open, currentPrice]);
+  }, [paymentMethod, email, step, open]); // Removed currentPrice to prevent recreating
 
   const handleStripeSuccess = (paymentIntentId: string) => {
     setPaymentId(paymentIntentId);
