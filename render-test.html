@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoMentor Render Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; } .error { color: red; } .warning { color: orange; }
+        button { padding: 10px 15px; margin: 5px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 3px; white-space: pre-wrap; }
+        .status { padding: 5px 10px; border-radius: 3px; font-weight: bold; }
+        .status.ok { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🚀 AutoMentor Render Deployment Test</h1>
+    <p>Use this page to test if your AutoMentor app is working correctly on Render.</p>
+    
+    <div class="test-section">
+        <h3>📡 Connection Tests</h3>
+        <button onclick="testHealth()">Test Health Endpoint</button>
+        <button onclick="testMechanics()">Test Mechanics Count</button>
+        <button onclick="testStripeConfig()">Test Stripe Config</button>
+        <button onclick="testAppConfig()">Test App Config</button>
+        <div id="connection-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔐 Authentication Tests</h3>
+        <button onclick="testLogin()">Test Admin Login</button>
+        <button onclick="testUserLogin()">Test User Login</button>
+        <button onclick="checkSession()">Check Current Session</button>
+        <div id="auth-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>💬 Chat System Tests</h3>
+        <button onclick="testChatSessions()">Test Chat Sessions</button>
+        <button onclick="testAdminDashboard()">Test Admin Dashboard</button>
+        <div id="chat-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 Environment Info</h3>
+        <button onclick="getEnvironmentInfo()">Get Environment Info</button>
+        <div id="env-results"></div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        
+        function log(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            container.innerHTML += `<div class="result ${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    credentials: 'include',
+                    ...options
+                });
+                
+                const data = await response.text();
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(data);
+                } catch {
+                    parsedData = data;
+                }
+
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    data: parsedData
+                };
+            } catch (error) {
+                return {
+                    ok: false,
+                    status: 0,
+                    error: error.message
+                };
+            }
+        }
+
+        async function testHealth() {
+            log('connection-results', '🔄 Testing health endpoint...', 'info');
+            const result = await apiCall('/api/health');
+            
+            if (result.ok) {
+                log('connection-results', `✅ Health check passed: ${JSON.stringify(result.data)}`, 'success');
+            } else {
+                log('connection-results', `❌ Health check failed: ${result.error || result.status}`, 'error');
+            }
+        }
+
+        async function testMechanics() {
+            log('connection-results', '🔄 Testing mechanics endpoint...', 'info');
+            const result = await apiCall('/api/mechanics');
+            
+            if (result.ok) {
+                log('connection-results', `✅ Mechanics data: ${JSON.stringify(result.data)}`, 'success');
+            } else {
+                log('connection-results', `❌ Mechanics test failed: ${result.error || result.status}`, 'error');
+            }
+        }
+
+        async function testStripeConfig() {
+            log('connection-results', '🔄 Testing Stripe config...', 'info');
+            const result = await apiCall('/api/stripe-config');
+            
+            if (result.ok) {
+                log('connection-results', `✅ Stripe config loaded`, 'success');
+            } else {
+                log('connection-results', `❌ Stripe config failed: ${result.error || result.status}`, 'error');
+            }
+        }
+
+        async function testAppConfig() {
+            log('connection-results', '🔄 Testing app config...', 'info');
+            const result = await apiCall('/api/app-config');
+            
+            if (result.ok) {
+                log('connection-results', `✅ App config loaded`, 'success');
+            } else {
+                log('connection-results', `❌ App config failed: ${result.error || result.status}`, 'error');
+            }
+        }
+
+        async function testLogin() {
+            log('auth-results', '🔄 Testing admin login...', 'info');
+            const result = await apiCall('/api/admin/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: 'admin',
+                    password: 'admin'
+                })
+            });
+            
+            if (result.ok) {
+                log('auth-results', `✅ Admin login successful`, 'success');
+            } else {
+                log('auth-results', `❌ Admin login failed: ${JSON.stringify(result.data)}`, 'error');
+            }
+        }
+
+        async function testUserLogin() {
+            log('auth-results', '🔄 Testing user login...', 'info');
+            const result = await apiCall('/api/users/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: 'test',
+                    password: '123456'
+                })
+            });
+            
+            if (result.ok) {
+                log('auth-results', `✅ User login successful`, 'success');
+            } else {
+                log('auth-results', `❌ User login failed: ${JSON.stringify(result.data)}`, 'error');
+            }
+        }
+
+        async function checkSession() {
+            log('auth-results', '🔄 Checking current session...', 'info');
+            const result = await apiCall('/api/users/me');
+            
+            if (result.ok) {
+                log('auth-results', `✅ Session active: ${JSON.stringify(result.data)}`, 'success');
+            } else {
+                log('auth-results', `❌ No active session: ${result.status}`, 'error');
+            }
+        }
+
+        async function testChatSessions() {
+            log('chat-results', '🔄 Testing chat sessions...', 'info');
+            const result = await apiCall('/api/chat/sessions');
+            
+            if (result.ok) {
+                log('chat-results', `✅ Chat sessions accessible`, 'success');
+            } else {
+                log('chat-results', `❌ Chat sessions failed: ${result.status}`, 'error');
+            }
+        }
+
+        async function testAdminDashboard() {
+            log('chat-results', '🔄 Testing admin dashboard...', 'info');
+            const result = await apiCall('/api/admin/dashboard');
+            
+            if (result.ok) {
+                log('chat-results', `✅ Admin dashboard accessible: ${JSON.stringify(result.data)}`, 'success');
+            } else {
+                log('chat-results', `❌ Admin dashboard failed: ${result.status}`, 'error');
+            }
+        }
+
+        async function getEnvironmentInfo() {
+            log('env-results', '🔄 Getting environment info...', 'info');
+            
+            log('env-results', `Current URL: ${window.location.href}`, 'info');
+            log('env-results', `API Base: ${API_BASE}`, 'info');
+            log('env-results', `User Agent: ${navigator.userAgent}`, 'info');
+            
+            // Test health to get server info
+            const health = await apiCall('/api/health');
+            if (health.ok) {
+                log('env-results', `Server Info: ${JSON.stringify(health.data)}`, 'info');
+            }
+        }
+
+        // Auto-run basic tests when page loads
+        window.onload = function() {
+            log('connection-results', 'AutoMentor Test Page Loaded', 'success');
+            log('connection-results', 'Click buttons above to test your deployment', 'info');
+        };
+    </script>
+</body>
+</html>
