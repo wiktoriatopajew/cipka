@@ -14,6 +14,14 @@ import Stripe from "stripe";
 
 const app = express();
 
+// Trust proxy for Render deployment
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+  console.log('Trust proxy enabled for production');
+} else {
+  console.log('Trust proxy disabled for development');
+}
+
 // Initialize Stripe after environment variables are loaded
 let stripe: Stripe | null = null;
 console.log('STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? 'SET' : 'NOT SET');
