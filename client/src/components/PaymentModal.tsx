@@ -422,7 +422,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           });
         });
     }
-  }, [paymentMethod, email, step, open]); // Removed currentPrice to prevent recreating
+  }, [paymentMethod, email, step, open, clientSecret]); // Added clientSecret to stop infinite loop
 
   const handleStripeSuccess = (paymentIntentId: string) => {
     console.log("🎉 handleStripeSuccess called with payment intent ID:", paymentIntentId);
@@ -867,7 +867,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
               )}
 
               {paymentMethod === "card" && email && stripeInstance && clientSecret && (
-                <Elements stripe={stripeInstance} options={{ clientSecret }}>
+                <Elements key={clientSecret} stripe={stripeInstance} options={{ clientSecret }}>
                   <StripeCheckoutForm onSuccess={handleStripeSuccess} email={email} currentPrice={currentPrice} />
                 </Elements>
               )}
