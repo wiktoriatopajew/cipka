@@ -104,17 +104,25 @@ function StripeCheckoutForm({ onSuccess, email, currentPrice }: { onSuccess: (pa
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement />
-      <Button
-        type="submit"
-        disabled={!stripe || isProcessing}
-        className="w-full"
-        data-testid="button-pay"
-      >
-        {isProcessing ? "Processing..." : `Pay $${currentPrice}`}
-      </Button>
-    </form>
+    <div style={{ border: '1px solid green', padding: '10px' }}>
+      <div className="text-xs text-green-600 mb-2">
+        StripeCheckoutForm rendered - stripe: {!!stripe}, elements: {!!elements}
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div style={{ border: '1px solid orange', minHeight: '50px', padding: '5px' }}>
+          <div className="text-xs text-orange-600">PaymentElement container:</div>
+          <PaymentElement />
+        </div>
+        <Button
+          type="submit"
+          disabled={!stripe || isProcessing}
+          className="w-full"
+          data-testid="button-pay"
+        >
+          {isProcessing ? "Processing..." : `Pay $${currentPrice}`}
+        </Button>
+      </form>
+    </div>
   );
 }
 
@@ -913,6 +921,11 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
                 />
               </div>
               
+              {/* Debug current state */}
+              <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
+                Debug State: payment={paymentMethod}, email={!!email}, stripe={!!stripeInstance}, secret={!!clientSecret}
+              </div>
+              
               {/* Stripe Credit Card Form */}
               {paymentMethod === "card" && email && !stripeInstance && (
                 <div className="p-4 border rounded-lg bg-destructive/10 border-destructive/20">
@@ -923,24 +936,34 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
               )}
 
               {paymentMethod === "card" && email && stripeInstance && clientSecret && (
-                <div className="space-y-3">
+                <div className="space-y-3" style={{ border: '2px solid red', padding: '10px', minHeight: '200px' }}>
                   <div className="text-xs text-muted-foreground mb-2">
                     Debug: Stripe loaded, clientSecret present. Rendering Elements...
                   </div>
-                  <Elements key={clientSecret} stripe={stripeInstance} options={{ clientSecret }}>
-                    <StripeCheckoutForm onSuccess={handleStripeSuccess} email={email} currentPrice={currentPrice} />
-                  </Elements>
+                  <div style={{ border: '1px solid blue', minHeight: '100px', padding: '10px' }}>
+                    <Elements key={clientSecret} stripe={stripeInstance} options={{ clientSecret }}>
+                      <StripeCheckoutForm onSuccess={handleStripeSuccess} email={email} currentPrice={currentPrice} />
+                    </Elements>
+                  </div>
                 </div>
               )}
 
               {paymentMethod === "card" && email && stripeInstance && !clientSecret && (
                 <div className="flex items-center justify-center p-4">
                   <div className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full" aria-label="Loading"/>
+                  <span className="ml-2 text-sm">Creating payment intent...</span>
                 </div>
               )}
 
               {paymentMethod === "card" && !email && (
                 <p className="text-sm text-muted-foreground">Please enter your email address first</p>
+              )}
+              
+              {/* Fallback debug case */}
+              {paymentMethod === "card" && email && stripeInstance && clientSecret && (
+                <div className="text-xs text-red-500 p-2 bg-red-100 rounded">
+                  If you see this message, Elements should be rendered above but isn't visible.
+                </div>
               )}
 
               {/* PayPal Form */}
