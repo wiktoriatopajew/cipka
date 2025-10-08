@@ -194,6 +194,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health", healthCheck);
   app.get("/health", healthCheck);
   
+  // Stripe test page for debugging
+  app.get("/stripe-test", (req, res) => {
+    res.sendFile(path.resolve(__dirname, '../stripe-test.html'));
+  });
+  
   // File storage info endpoint
   app.get("/api/storage-info", (req, res) => {
     const isRender = process.env.RENDER === 'true';

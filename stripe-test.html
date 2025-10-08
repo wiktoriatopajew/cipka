@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stripe Test - AutoMentor</title>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <h1>Stripe Test Page</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testStripe() {
+            const log = (msg) => {
+                console.log(msg);
+                document.getElementById('results').innerHTML += '<p>' + msg + '</p>';
+            };
+            
+            log('🔧 Testing Stripe configuration...');
+            
+            // Test if Stripe is loaded
+            if (window.Stripe) {
+                log('✅ Stripe library loaded');
+            } else {
+                log('❌ Stripe library NOT loaded');
+                return;
+            }
+            
+            // Test Stripe config endpoint
+            try {
+                const response = await fetch('/api/stripe-config');
+                const data = await response.json();
+                
+                if (data.publicKey) {
+                    log('✅ Stripe public key received: ' + data.publicKey.substring(0, 20) + '...');
+                    
+                    // Try to initialize Stripe
+                    const stripe = Stripe(data.publicKey);
+                    log('✅ Stripe initialized successfully');
+                    
+                    // Test payment intent creation
+                    try {
+                        const piResponse = await fetch('/api/create-payment-intent', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ amount: 14.99 })
+                        });
+                        
+                        const piData = await piResponse.json();
+                        if (piData.clientSecret) {
+                            log('✅ Payment intent created: ' + piData.clientSecret.substring(0, 20) + '...');
+                        } else {
+                            log('❌ Payment intent creation failed: ' + JSON.stringify(piData));
+                        }
+                    } catch (error) {
+                        log('❌ Payment intent error: ' + error.message);
+                    }
+                    
+                } else {
+                    log('❌ No public key in response: ' + JSON.stringify(data));
+                }
+            } catch (error) {
+                log('❌ Stripe config error: ' + error.message);
+            }
+        }
+        
+        // Run test when page loads
+        testStripe();
+    </script>
+</body>
+</html>
