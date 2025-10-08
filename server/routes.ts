@@ -217,7 +217,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe payment route - reference: blueprint:javascript_stripe
-  app.post("/api/create-payment-intent", async (req, res) => {
+  app.post("/api/create-payment-intent", rateLimit({ 
+    windowMs: 60000, // 1 minute
+    max: 5, // max 5 payment intents per minute per IP
+    message: { error: "Too many payment intent requests, please try again later" }
+  }), async (req, res) => {
     try {
       if (!stripe) {
         return res.status(503).json({ error: "Stripe not configured" });
@@ -226,23 +230,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate amount from client request
       const { amount } = req.body;
       
+      console.log(`Payment intent request for amount: ${amount}`);
+      
       // Valid pricing tiers
       const validAmounts = [14.99, 49.99, 79.99];
       
       if (!amount || !validAmounts.includes(amount)) {
+        console.log(`Invalid amount requested: ${amount}`);
         return res.status(400).json({ error: "Invalid amount" });
       }
       
       // Convert to cents for Stripe
       const SUBSCRIPTION_AMOUNT = Math.round(amount * 100);
       
+      console.log(`Creating payment intent for ${SUBSCRIPTION_AMOUNT} cents`);
+      
       const paymentIntent = await stripe.paymentIntents.create({
         amount: SUBSCRIPTION_AMOUNT,
         currency: "usd",
         automatic_payment_methods: { enabled: true },
       });
+      
+      console.log(`Payment intent created: ${paymentIntent.id}`);
       res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
+      console.error("Payment intent error:", error);
       res
         .status(500)
         .json({ message: "Error creating payment intent: " + error.message });
@@ -1588,25 +1600,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { filename } = req.params;
       const filePath = path.join('uploads', filename);
       
+      console.log(`Upload request for: ${filename}`);
+      console.log(`Looking for file at: ${path.resolve(filePath)}`);
+      
       // Check if file exists
       if (!fs.existsSync(filePath)) {
+        console.log(`File not found at: ${path.resolve(filePath)}`);
         return res.status(404).json({ error: "File not found" });
       }
       
       // Get attachment info to verify access
       const attachment = await storage.getAttachmentByFilename(filename);
       if (!attachment) {
+        console.log(`No attachment record found for: ${filename}`);
         return res.status(404).json({ error: "File not found" });
       }
       
       // Check if file has expired
       if (attachment.expiresAt && new Date() > new Date(attachment.expiresAt)) {
+        console.log(`File expired: ${filename}`);
         // Delete expired file
         fs.unlinkSync(filePath);
         await storage.deleteAttachment(attachment.id);
         return res.status(404).json({ error: "File has expired" });
       }
       
+      console.log(`Serving file: ${filename}`);
       res.sendFile(path.resolve(filePath));
     } catch (error) {
       res.status(500).json({ error: "Failed to serve file" });
