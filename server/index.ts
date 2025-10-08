@@ -160,7 +160,7 @@ if (process.env.NODE_ENV === 'production') {
         ],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
-        frameSrc: ["'none'"],
+        frameSrc: ["https://js.stripe.com", "https://hooks.stripe.com"],
         frameAncestors: ["'none'"]
       }
     }
