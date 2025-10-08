@@ -2487,6 +2487,57 @@ Test sent at: ${new Date().toLocaleString()}
     }
   });
 
+  // Emergency admin promotion endpoint - only works once
+  app.post("/api/emergency/promote-admin", rateLimit({ windowMs: 60000, max: 1 }), async (req, res) => {
+    try {
+      console.log("Emergency admin promotion attempt:", req.body);
+      
+      const { email, secretKey } = req.body;
+      
+      // Secret key protection - only allow once
+      if (secretKey !== "EMERGENCY_ADMIN_2025_RENDER") {
+        return res.status(403).json({ error: "Invalid secret key" });
+      }
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email required" });
+      }
+      
+      console.log(`Attempting to promote ${email} to admin...`);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      console.log(`Found user: ${user.username} (${user.email})`);
+      
+      // Update user to admin
+      await storage.updateUser(user.id, {
+        isAdmin: true,
+        hasSubscription: true
+      });
+      
+      console.log(`Successfully promoted ${email} to admin`);
+      
+      res.json({ 
+        success: true, 
+        message: `User ${user.username} promoted to admin`,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          isAdmin: true
+        }
+      });
+      
+    } catch (error) {
+      console.error("Emergency admin promotion error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
