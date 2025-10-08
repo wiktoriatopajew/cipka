@@ -250,6 +250,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     message: { error: "Too many payment intent requests, please try again later" }
   }), async (req, res) => {
     try {
+      console.log('Raw request body:', req.body);
+      console.log('Request body type:', typeof req.body);
+      console.log('Request body JSON:', JSON.stringify(req.body));
+      
       if (!stripe) {
         return res.status(503).json({ error: "Stripe not configured" });
       }
@@ -258,6 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { amount } = req.body;
       
       console.log(`Payment intent request for amount: ${amount}`);
+      console.log(`Amount type: ${typeof amount}`);
       
       // Valid pricing tiers
       const validAmounts = [14.99, 49.99, 79.99];

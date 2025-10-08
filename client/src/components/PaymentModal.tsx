@@ -386,6 +386,8 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
     // Only create payment intent if we don't already have one
     if (paymentMethod === "card" && email && step === "payment" && open && !clientSecret) {
       console.log("Creating payment intent for amount:", currentPrice);
+      console.log("Amount type:", typeof currentPrice);
+      console.log("JSON payload:", JSON.stringify({ amount: currentPrice }));
       
       apiRequest("POST", "/api/create-payment-intent", { amount: currentPrice })
         .then((res) => {
@@ -400,6 +402,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
         })
         .catch((error) => {
           console.error("Failed to create payment intent:", error);
+          console.error("Error details:", error.message);
           toast({
             title: "Error",
             description: "Failed to initialize payment. Please try again.",
