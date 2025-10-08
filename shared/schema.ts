@@ -147,7 +147,7 @@ export const appConfig = pgTable('app_config', {
 
   // General Settings
   appName: text('app_name').default('AutoMentor'),
-  appUrl: text('app_url').default('http://localhost:5000'),
+  appUrl: text('app_url').default('https://automentor-3.onrender.com'),
   supportEmail: text('support_email'),
   faviconPath: text('favicon_path'),
 

@@ -2190,9 +2190,13 @@ Test sent at: ${new Date().toLocaleString()}
       });
     } catch (error) {
       console.error("Failed to get public app config:", error);
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://automentor-3.onrender.com' 
+        : 'http://localhost:5000';
+        
       res.json({
         appName: 'AutoMentor',
-        appUrl: 'http://localhost:5000',
+        appUrl: baseUrl,
         paypalMode: 'sandbox',
         supportEmail: '',
         emailFromName: 'AutoMentor',

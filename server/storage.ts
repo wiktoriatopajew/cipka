@@ -488,10 +488,14 @@ export class MemStorage implements IStorage {
   }
 
   async getAppConfig(): Promise<any> {
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://automentor-3.onrender.com' 
+      : 'http://localhost:5000';
+      
     return {
       id: 1,
       appName: 'AutoMentor',
-      appUrl: 'http://localhost:5000',
+      appUrl: baseUrl,
       stripePublishableKey: '',
       stripeSecretKey: '',
       stripeWebhookSecret: '',
@@ -1184,10 +1188,14 @@ export class PostgresStorage implements IStorage {
       
       if (result.length === 0) {
         // Return default config if none exists
+        const baseUrl = process.env.NODE_ENV === 'production' 
+          ? 'https://automentor-3.onrender.com' 
+          : 'http://localhost:5000';
+          
         return {
           id: 1,
           appName: 'AutoMentor',
-          appUrl: 'http://localhost:5000',
+          appUrl: baseUrl,
           stripePublishableKey: '',
           stripeSecretKey: '',
           stripeWebhookSecret: '',
