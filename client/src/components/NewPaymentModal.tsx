@@ -41,9 +41,6 @@ function getPlanDetails(plan: 'basic' | 'professional' | 'expert') {
 }
 
 export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, vehicleInfo, selectedPlan = 'basic', referralCode = '', user }: PaymentModalProps) {
-  console.log('PaymentModal received vehicleInfo:', vehicleInfo);
-  console.log('PaymentModal received user:', user);
-  
   const isLoggedIn = user && user.id;
   const [step, setStep] = useState("payment");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "paypal">("card");
@@ -227,7 +224,6 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
   });
 
   const handleStripeSuccess = (paymentIntentId: string) => {
-    console.log("🎉 Stripe payment successful:", paymentIntentId);
     setPaymentId(paymentIntentId);
     
     const price = getPlanPrice(currentSelectedPlan, !!referralCode);
@@ -253,7 +249,6 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
   };
 
   const handlePayPalSuccess = (data: any) => {
-    console.log("PayPal payment successful:", data);
     const orderId = data?.id || data?.orderID || "";
     setPaymentId(orderId);
     
