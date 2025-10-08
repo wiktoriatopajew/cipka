@@ -35,9 +35,11 @@ function StripeCheckoutForm({ onSuccess, email, currentPrice }: { onSuccess: (pa
     e.preventDefault();
 
     if (!stripe || !elements) {
+      console.error("Stripe or elements not loaded");
       return;
     }
 
+    console.log("Starting Stripe payment confirmation...");
     setIsProcessing(true);
 
     const { error, paymentIntent } = await stripe.confirmPayment({
@@ -49,6 +51,7 @@ function StripeCheckoutForm({ onSuccess, email, currentPrice }: { onSuccess: (pa
       redirect: "if_required",
     });
 
+    console.log("Stripe confirmPayment result:", { error, paymentIntent });
     setIsProcessing(false);
 
     if (error) {
@@ -151,7 +154,8 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
 
   // Initialize Stripe from global window.Stripe
   useEffect(() => {
-    const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+    // Try to get Stripe public key from window object first (set by Vite)
+    const stripePublicKey = (window as any).__VITE_STRIPE_PUBLIC_KEY__ || 'pk_test_51NSmbFEqdkqBXQdX4uoBQAu2Y0Uk8RyulN1hXl8iJnMv3w6MVHUvy3T8usJoJNkZ6QB9AtwJtm0IgTZo5muaDFuC00Zc2YiOWp';
     console.log('VITE_STRIPE_PUBLIC_KEY:', stripePublicKey);
     console.log('window.Stripe:', (window as any).Stripe);
     
@@ -413,6 +417,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
   }, [paymentMethod, email, step, open]); // Removed currentPrice to prevent recreating
 
   const handleStripeSuccess = (paymentIntentId: string) => {
+    console.log("🎉 handleStripeSuccess called with payment intent ID:", paymentIntentId);
     setPaymentId(paymentIntentId);
     
     // Track add payment info
