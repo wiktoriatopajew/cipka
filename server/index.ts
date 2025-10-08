@@ -119,14 +119,14 @@ const cleanupInactiveUsers = async () => {
 
 // NOTE: inactive users cleanup scheduler is started after DB is ready below
 
-// Security headers with Helmet - simplified for development
+// Security headers with Helmet - relaxed for React app
 if (process.env.NODE_ENV === 'production') {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow React dev tools
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"],
         fontSrc: ["'self'"],
