@@ -44,37 +44,60 @@ function StripeCheckoutForm({ onSuccess, email, currentPrice }: { onSuccess: (pa
     console.log("Return URL will be:", window.location.origin);
     setIsProcessing(true);
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: window.location.origin,
-        receipt_email: email,
-      },
-      redirect: "if_required",
-    });
+    try {
+      // Add timeout wrapper
+      const confirmPaymentPromise = stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: window.location.origin,
+          receipt_email: email,
+        },
+        redirect: "if_required",
+      });
 
-    console.log("Stripe confirmPayment result:", { error, paymentIntent });
-    setIsProcessing(false);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Payment confirmation timeout after 30 seconds')), 30000)
+      );
 
-    if (error) {
-      console.error("Stripe payment error:", error);
+      console.log("Calling stripe.confirmPayment with timeout...");
+      const result = await Promise.race([confirmPaymentPromise, timeoutPromise]) as any;
+      const { error, paymentIntent } = result;
+
+      console.log("Stripe confirmPayment completed:", { 
+        error: error?.message || null, 
+        paymentIntentId: paymentIntent?.id || null,
+        paymentIntentStatus: paymentIntent?.status || null
+      });
+      setIsProcessing(false);
+
+      if (error) {
+        console.error("Stripe payment error:", error);
+        toast({
+          title: "Payment Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else if (paymentIntent && paymentIntent.id) {
+        console.log("Payment successful, calling onSuccess with:", paymentIntent.id);
+        toast({
+          title: "Payment successful!",
+          description: "Now create your account",
+        });
+        onSuccess(paymentIntent.id);
+      } else {
+        console.error("No payment intent returned:", paymentIntent);
+        toast({
+          title: "Payment Failed",
+          description: "No payment confirmation received",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      console.error("Payment confirmation error:", err);
+      setIsProcessing(false);
       toast({
         title: "Payment Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else if (paymentIntent && paymentIntent.id) {
-      console.log("Payment successful, calling onSuccess with:", paymentIntent.id);
-      toast({
-        title: "Payment successful!",
-        description: "Now create your account",
-      });
-      onSuccess(paymentIntent.id);
-    } else {
-      console.error("No payment intent returned:", paymentIntent);
-      toast({
-        title: "Payment Failed",
-        description: "No payment confirmation received",
+        description: err.message || "Payment confirmation failed",
         variant: "destructive",
       });
     }
