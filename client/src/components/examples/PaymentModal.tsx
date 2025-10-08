@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import PaymentModal from '../PaymentModal';
+import PaymentModal from '../NewPaymentModal';
 import { Button } from '@/components/ui/button';
 
 export default function PaymentModalExample() {

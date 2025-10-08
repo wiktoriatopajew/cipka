@@ -13,7 +13,7 @@ import OnlineMechanics from "@/components/OnlineMechanics";
 import VehicleSelector from "@/components/VehicleSelector";
 import ChatInterface from "@/components/ChatInterface";
 import ChatHistory from "@/components/ChatHistory";
-import PaymentModal from "@/components/PaymentModal";
+import PaymentModal from "@/components/NewPaymentModal";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import LoginModal from "@/components/LoginModal";
 import Footer from "@/components/Footer";
