@@ -119,17 +119,37 @@ const cleanupInactiveUsers = async () => {
 
 // NOTE: inactive users cleanup scheduler is started after DB is ready below
 
-// Security headers with Helmet - relaxed for React app
+// Security headers with Helmet - configured for React app with external resources
 if (process.env.NODE_ENV === 'production') {
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow React dev tools
-        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
+        scriptSrc: [
+          "'self'", 
+          "'unsafe-inline'", 
+          "'unsafe-eval'", 
+          "https://js.stripe.com",
+          "https://www.googletagmanager.com",
+          "https://connect.facebook.net",
+          "https://www.google-analytics.com"
+        ],
+        styleSrc: [
+          "'self'", 
+          "'unsafe-inline'", 
+          "https://fonts.googleapis.com"
+        ],
+        fontSrc: [
+          "'self'", 
+          "https://fonts.gstatic.com"
+        ],
+        imgSrc: ["'self'", "data:", "https:", "http:"],
+        connectSrc: [
+          "'self'", 
+          "https://api.stripe.com",
+          "https://www.google-analytics.com",
+          "https://analytics.google.com"
+        ],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
