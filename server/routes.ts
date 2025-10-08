@@ -14,7 +14,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal-wrapper";
-import { stripe } from "./index";
+import { stripe, getStripeInstance } from "./index";
 
 // Track last notification time for each session (for 15-minute alerts)
 const sessionNotificationTimestamps: Map<string, number> = new Map();
@@ -263,6 +263,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(503).json({ error: "Stripe not configured" });
       }
 
+      // Get dynamic Stripe instance (fallback to default)
+      const stripeInstance = await getStripeInstance() || stripe;
+      if (!stripeInstance) {
+        return res.status(503).json({ error: "Stripe not configured" });
+      }
+
       // Validate amount from client request
       const { amount } = req.body;
       
@@ -282,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Creating payment intent for ${SUBSCRIPTION_AMOUNT} cents`);
       
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await stripeInstance.paymentIntents.create({
         amount: SUBSCRIPTION_AMOUNT,
         currency: "usd",
         automatic_payment_methods: { enabled: true },
@@ -1264,8 +1270,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(503).json({ error: "Stripe not configured" });
         }
         
+        // Get dynamic Stripe instance (fallback to default)
+        const stripeInstance = await getStripeInstance() || stripe;
+        if (!stripeInstance) {
+          return res.status(503).json({ error: "Stripe not configured" });
+        }
+        
         // Verify Stripe payment
-        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        const paymentIntent = await stripeInstance.paymentIntents.retrieve(paymentIntentId);
         
         if (paymentIntent.status === "succeeded" && 
             paymentIntent.amount === STRIPE_AMOUNT_CENTS && 
@@ -1984,6 +1996,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to update app config:", error);
       res.status(500).json({ error: "Failed to update app configuration" });
+    }
+  });
+
+  // Stripe configuration endpoint (public key only)
+  app.get("/api/stripe-config", async (req, res) => {
+    try {
+      const config = await storage.getAppConfig();
+      res.json({ 
+        publishableKey: config?.stripePublishableKey || process.env.VITE_STRIPE_PUBLIC_KEY || null
+      });
+    } catch (error) {
+      console.error("Failed to get Stripe config:", error);
+      res.json({ 
+        publishableKey: process.env.VITE_STRIPE_PUBLIC_KEY || null
+      });
     }
   });
 

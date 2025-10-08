@@ -1280,9 +1280,9 @@ export class PostgresStorage implements IStorage {
       const [totalSubs] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions);
       const [totalSessions] = await db.select({ count: sql<number>`count(*)` }).from(chatSessions);
 
-      // Revenue calculation (from subscriptions)
+      // Revenue calculation (from subscriptions with proper conversion)
       const revenueResult = await db.select({ 
-        totalRevenue: sql<number>`COALESCE(sum(amount), 0)` 
+        totalRevenue: sql<number>`COALESCE(SUM(CAST(amount AS DECIMAL(10,2))), 0)` 
       }).from(subscriptions);
       
       const totalRevenue = revenueResult[0]?.totalRevenue || 0;
@@ -1347,8 +1347,8 @@ export class PostgresStorage implements IStorage {
       .from(subscriptions)
       .where(
         and(
-          gte(subscriptions.purchasedAt, start.toISOString()),
-          lte(subscriptions.purchasedAt, end.toISOString())
+          gte(subscriptions.purchasedAt, start),
+          lte(subscriptions.purchasedAt, end)
         )
       );
 
@@ -1361,8 +1361,8 @@ export class PostgresStorage implements IStorage {
       .from(subscriptions)
       .where(
         and(
-          gte(subscriptions.purchasedAt, start.toISOString()),
-          lte(subscriptions.purchasedAt, end.toISOString())
+          gte(subscriptions.purchasedAt, start),
+          lte(subscriptions.purchasedAt, end)
         )
       )
       .groupBy(sql`date(${subscriptions.purchasedAt})`)
@@ -1446,7 +1446,7 @@ export class PostgresStorage implements IStorage {
             count: sql`count(*)`
           })
           .from(users)
-          .where(gte(users.createdAt, startDate.toISOString()))
+          .where(gte(users.createdAt, startDate))
           .groupBy(groupBy === 'month' 
             ? sql`strftime('%Y-%m', ${users.createdAt})`
             : sql`date(${users.createdAt})`)
@@ -1466,7 +1466,7 @@ export class PostgresStorage implements IStorage {
             amount: sql`sum(amount)`
           })
           .from(subscriptions)
-          .where(gte(subscriptions.purchasedAt, startDate.toISOString()))
+          .where(gte(subscriptions.purchasedAt, startDate))
           .groupBy(groupBy === 'month' 
             ? sql`strftime('%Y-%m', ${subscriptions.purchasedAt})`
             : sql`date(${subscriptions.purchasedAt})`)
@@ -1486,7 +1486,7 @@ export class PostgresStorage implements IStorage {
             count: sql`count(*)`
           })
           .from(chatSessions)
-          .where(gte(chatSessions.createdAt, startDate.toISOString()))
+          .where(gte(chatSessions.createdAt, startDate))
           .groupBy(groupBy === 'month' 
             ? sql`strftime('%Y-%m', ${chatSessions.createdAt})`
             : sql`date(${chatSessions.createdAt})`)

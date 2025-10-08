@@ -24,6 +24,43 @@ if (process.env.NODE_ENV === 'production') {
 
 // Initialize Stripe after environment variables are loaded
 let stripe: Stripe | null = null;
+
+// Function to get dynamic Stripe instance from database
+async function getStripeInstance(): Promise<Stripe | null> {
+  try {
+    // Import storage here to avoid circular dependency
+    const { storage } = await import('./storage');
+    
+    // Try to get from database first
+    const config = await storage.getAppConfig();
+    const secretKey = config?.stripeSecretKey;
+    
+    if (secretKey) {
+      return new Stripe(secretKey, {
+        apiVersion: "2025-08-27.basil",
+      });
+    }
+    
+    // Fallback to environment variable
+    if (process.env.STRIPE_SECRET_KEY) {
+      return new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2025-08-27.basil",
+      });
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting Stripe instance:', error);
+    // Fallback to environment variable
+    if (process.env.STRIPE_SECRET_KEY) {
+      return new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2025-08-27.basil",
+      });
+    }
+    return null;
+  }
+}
+
 console.log('STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? 'SET' : 'NOT SET');
 console.log('SMTP_USER:', process.env.SMTP_USER ? 'SET' : 'NOT SET');
 console.log('SMTP_PASS:', process.env.SMTP_PASS ? 'SET' : 'NOT SET');
@@ -36,8 +73,8 @@ if (process.env.STRIPE_SECRET_KEY) {
   console.log('Stripe NOT initialized - missing STRIPE_SECRET_KEY');
 }
 
-// Export stripe for use in routes
-export { stripe };
+// Export stripe and dynamic getter for use in routes
+export { stripe, getStripeInstance };
 
 // Initialize email after environment variables are loaded
 if (process.env.SMTP_USER && process.env.SMTP_PASS) {

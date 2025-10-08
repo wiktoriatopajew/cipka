@@ -12,7 +12,26 @@ import { apiRequest } from '@/lib/queryClient';
 import { CreditCard, Lock, Shield } from 'lucide-react';
 
 // Initialize Stripe outside of component to avoid recreating
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY!);
+// Dynamic Stripe Promise that fetches key from API
+const getStripePromise = async () => {
+  try {
+    const response = await fetch('/api/stripe-config');
+    const config = await response.json();
+    
+    if (config.publishableKey) {
+      return loadStripe(config.publishableKey);
+    }
+    
+    // Fallback to environment variable
+    return loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY!);
+  } catch (error) {
+    console.error('Error loading Stripe config:', error);
+    // Fallback to environment variable
+    return loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY!);
+  }
+};
+
+const stripePromise = getStripePromise();
 
 // Card Element styling - modern and beautiful
 const CARD_ELEMENT_OPTIONS = {

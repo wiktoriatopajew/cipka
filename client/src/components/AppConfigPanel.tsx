@@ -17,7 +17,6 @@ interface AppConfig {
   // Stripe
   stripePublishableKey: string;
   stripeSecretKey: string;
-  stripeWebhookSecret: string;
   // PayPal
   paypalClientId: string;
   paypalClientSecret: string;
@@ -48,7 +47,6 @@ export default function AppConfigPanel() {
     appUrl: 'http://localhost:5000',
     stripePublishableKey: '',
     stripeSecretKey: '',
-    stripeWebhookSecret: '',
     paypalClientId: '',
     paypalClientSecret: '',
     paypalWebhookId: '',
@@ -66,7 +64,6 @@ export default function AppConfigPanel() {
 
   const [showSecrets, setShowSecrets] = useState({
     stripeSecret: false,
-    stripeWebhook: false,
     paypalSecret: false,
     paypalWebhook: false,
     smtpPass: false
@@ -463,28 +460,6 @@ export default function AppConfigPanel() {
                     onClick={() => toggleSecretVisibility('stripeSecret')}
                   >
                     {showSecrets.stripeSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="stripeWebhookSecret">Webhook Secret</Label>
-                <div className="relative">
-                  <Input
-                    id="stripeWebhookSecret"
-                    type={showSecrets.stripeWebhook ? "text" : "password"}
-                    value={config.stripeWebhookSecret}
-                    onChange={(e) => handleConfigChange('stripeWebhookSecret', e.target.value)}
-                    placeholder="whsec_..."
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-1/2 -translate-y-1/2"
-                    onClick={() => toggleSecretVisibility('stripeWebhook')}
-                  >
-                    {showSecrets.stripeWebhook ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
