@@ -2487,6 +2487,76 @@ Test sent at: ${new Date().toLocaleString()}
     }
   });
 
+  // Debug database viewer endpoint (temporary for diagnostics)
+  app.get("/api/debug/database", rateLimit({ windowMs: 60000, max: 10 }), async (req, res) => {
+    try {
+      console.log("Database debug view requested");
+      
+      // Get basic stats
+      const allUsers = await storage.getAllUsers();
+      const activeSessions = await storage.getAllActiveChatSessions();
+      
+      // Count stats
+      const totalUsers = allUsers.length;
+      const adminUsers = allUsers.filter(u => u.isAdmin).length;
+      const vipUsers = allUsers.filter(u => u.hasSubscription).length;
+      const totalSessions = activeSessions.length;
+      
+      // Recent users (last 10, sanitized)
+      const recentUsers = allUsers
+        .sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 10)
+        .map(user => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          isAdmin: user.isAdmin,
+          hasSubscription: user.hasSubscription,
+          createdAt: user.createdAt,
+          isOnline: user.isOnline
+        }));
+      
+      // Recent sessions (last 10, basic info)
+      const recentSessions = activeSessions
+        .sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 10)
+        .map(session => ({
+          id: session.id,
+          userId: session.userId,
+          vehicleInfo: session.vehicleInfo,
+          status: session.status,
+          createdAt: session.createdAt,
+          lastActivity: session.lastActivity
+        }));
+      
+      res.json({
+        stats: {
+          totalUsers,
+          adminUsers,
+          vipUsers,
+          totalSessions,
+          timestamp: new Date().toISOString()
+        },
+        recentUsers,
+        recentSessions,
+        database: "PostgreSQL (Production)",
+        environment: process.env.NODE_ENV
+      });
+      
+    } catch (error) {
+      console.error("Database debug view error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Emergency admin promotion endpoint - only works once
   app.post("/api/emergency/promote-admin", rateLimit({ windowMs: 60000, max: 1 }), async (req, res) => {
     try {
