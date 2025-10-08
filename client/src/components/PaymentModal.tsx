@@ -383,10 +383,19 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
 
   // Fetch Stripe client secret when card payment is selected and email is provided
   useEffect(() => {
-    if (paymentMethod === "card" && email && step === "payment" && open) {
+    // Only create payment intent if we don't already have one
+    if (paymentMethod === "card" && email && step === "payment" && open && !clientSecret) {
+      console.log("Creating payment intent for amount:", currentPrice);
+      
       apiRequest("POST", "/api/create-payment-intent", { amount: currentPrice })
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          return res.json();
+        })
         .then((data) => {
+          console.log("Payment intent created successfully");
           setClientSecret(data.clientSecret);
         })
         .catch((error) => {
@@ -398,7 +407,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           });
         });
     }
-  }, [paymentMethod, email, step, open]);
+  }, [paymentMethod, email, step, open, currentPrice]);
 
   const handleStripeSuccess = (paymentIntentId: string) => {
     setPaymentId(paymentIntentId);
