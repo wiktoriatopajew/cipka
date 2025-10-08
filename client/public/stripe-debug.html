@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stripe Test - Production Debug</title>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <h1>Stripe Debug Page</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message) {
+            console.log(message);
+            results.innerHTML += '<div>' + JSON.stringify(message) + '</div>';
+        }
+        
+        // Check if Stripe loaded
+        log('window.Stripe available: ' + !!window.Stripe);
+        
+        // Check environment variables (this won't work in production build)
+        log('Current URL: ' + window.location.href);
+        log('Environment: ' + (window.location.hostname === 'localhost' ? 'development' : 'production'));
+        
+        // Try to initialize Stripe with the test key
+        const testKey = 'pk_test_51NSmbFEqdkqBXQdX4uoBQAu2Y0Uk8RyulN1hXl8iJnMv3w6MVHUvy3T8usJoJNkZ6QB9AtwJtm0IgTZo5muaDFuC00Zc2YiOWp';
+        
+        if (window.Stripe) {
+            try {
+                const stripe = window.Stripe(testKey);
+                log('Stripe initialized successfully with test key');
+                
+                // Test payment intent creation
+                fetch('/api/create-payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ amount: 14.99 })
+                })
+                .then(res => {
+                    log('Payment intent response status: ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    log('Payment intent created: ' + !!data.clientSecret);
+                    log('Client secret starts with: ' + (data.clientSecret || 'null').substring(0, 20));
+                })
+                .catch(error => {
+                    log('Payment intent error: ' + error.message);
+                });
+                
+            } catch (error) {
+                log('Stripe initialization error: ' + error.message);
+            }
+        } else {
+            log('Stripe not available');
+        }
+    </script>
+</body>
+</html>
