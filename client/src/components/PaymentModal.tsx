@@ -35,11 +35,13 @@ function StripeCheckoutForm({ onSuccess, email, currentPrice }: { onSuccess: (pa
     e.preventDefault();
 
     if (!stripe || !elements) {
-      console.error("Stripe or elements not loaded");
+      console.error("Stripe or elements not loaded", { stripe: !!stripe, elements: !!elements });
       return;
     }
 
     console.log("Starting Stripe payment confirmation...");
+    console.log("Current URL:", window.location.href);
+    console.log("Return URL will be:", window.location.origin);
     setIsProcessing(true);
 
     const { error, paymentIntent } = await stripe.confirmPayment({
@@ -55,17 +57,26 @@ function StripeCheckoutForm({ onSuccess, email, currentPrice }: { onSuccess: (pa
     setIsProcessing(false);
 
     if (error) {
+      console.error("Stripe payment error:", error);
       toast({
         title: "Payment Failed",
         description: error.message,
         variant: "destructive",
       });
     } else if (paymentIntent && paymentIntent.id) {
+      console.log("Payment successful, calling onSuccess with:", paymentIntent.id);
       toast({
         title: "Payment successful!",
         description: "Now create your account",
       });
       onSuccess(paymentIntent.id);
+    } else {
+      console.error("No payment intent returned:", paymentIntent);
+      toast({
+        title: "Payment Failed",
+        description: "No payment confirmation received",
+        variant: "destructive",
+      });
     }
   };
 
@@ -154,10 +165,11 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
 
   // Initialize Stripe from global window.Stripe
   useEffect(() => {
-    // Try to get Stripe public key from window object first (set by Vite)
-    const stripePublicKey = (window as any).__VITE_STRIPE_PUBLIC_KEY__ || 'pk_test_51NSmbFEqdkqBXQdX4uoBQAu2Y0Uk8RyulN1hXl8iJnMv3w6MVHUvy3T8usJoJNkZ6QB9AtwJtm0IgTZo5muaDFuC00Zc2YiOWp';
-    console.log('VITE_STRIPE_PUBLIC_KEY:', stripePublicKey);
-    console.log('window.Stripe:', (window as any).Stripe);
+    // Get Stripe public key from Vite environment
+    const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51NSmbFEqdkqBXQdX4uoBQAu2Y0Uk8RyulN1hXl8iJnMv3w6MVHUvy3T8usJoJNkZ6QB9AtwJtm0IgTZo5muaDFuC00Zc2YiOWp';
+    console.log('VITE_STRIPE_PUBLIC_KEY from env:', import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+    console.log('Using stripe key:', stripePublicKey);
+    console.log('window.Stripe available:', !!(window as any).Stripe);
     
     if (stripePublicKey && (window as any).Stripe) {
       const stripe = (window as any).Stripe(stripePublicKey);
@@ -392,7 +404,8 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
       email: !!email,
       step,
       open,
-      clientSecret: !!clientSecret
+      clientSecret: !!clientSecret,
+      currentPrice
     });
     
     // Only create payment intent if we don't already have one
@@ -401,18 +414,33 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
       console.log("Amount type:", typeof currentPrice);
       console.log("JSON payload:", JSON.stringify({ amount: currentPrice }));
       
+      // Create an AbortController for this request
+      const abortController = new AbortController();
+      
       apiRequest("POST", "/api/create-payment-intent", { amount: currentPrice })
         .then((res) => {
+          if (abortController.signal.aborted) {
+            console.log("Payment intent request aborted");
+            return null;
+          }
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
           }
           return res.json();
         })
         .then((data) => {
-          console.log("Payment intent created successfully");
+          if (abortController.signal.aborted || !data) {
+            console.log("Payment intent response aborted or empty");
+            return;
+          }
+          console.log("Payment intent created successfully:", data.clientSecret.substring(0, 20) + "...");
           setClientSecret(data.clientSecret);
         })
         .catch((error) => {
+          if (abortController.signal.aborted) {
+            console.log("Payment intent request was aborted");
+            return;
+          }
           console.error("Failed to create payment intent:", error);
           console.error("Error details:", error.message);
           toast({
@@ -421,8 +449,13 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
             variant: "destructive",
           });
         });
+        
+      // Cleanup function to abort request if component unmounts or effect re-runs
+      return () => {
+        abortController.abort();
+      };
     }
-  }, [paymentMethod, email, step, open, clientSecret]); // Added clientSecret to stop infinite loop
+  }, [paymentMethod, email, step, open, clientSecret, currentPrice]); // Added currentPrice to deps
 
   const handleStripeSuccess = (paymentIntentId: string) => {
     console.log("🎉 handleStripeSuccess called with payment intent ID:", paymentIntentId);
@@ -867,9 +900,14 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
               )}
 
               {paymentMethod === "card" && email && stripeInstance && clientSecret && (
-                <Elements key={clientSecret} stripe={stripeInstance} options={{ clientSecret }}>
-                  <StripeCheckoutForm onSuccess={handleStripeSuccess} email={email} currentPrice={currentPrice} />
-                </Elements>
+                <div className="space-y-3">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Debug: Stripe loaded, clientSecret present. Rendering Elements...
+                  </div>
+                  <Elements key={clientSecret} stripe={stripeInstance} options={{ clientSecret }}>
+                    <StripeCheckoutForm onSuccess={handleStripeSuccess} email={email} currentPrice={currentPrice} />
+                  </Elements>
+                </div>
               )}
 
               {paymentMethod === "card" && email && stripeInstance && !clientSecret && (
