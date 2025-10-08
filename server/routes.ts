@@ -2487,6 +2487,46 @@ Test sent at: ${new Date().toLocaleString()}
     }
   });
 
+  // Temporary verification endpoint - check if migration worked
+  app.get("/api/verify/migration", rateLimit({ windowMs: 60000, max: 5 }), async (req, res) => {
+    try {
+      console.log("Migration verification requested");
+      
+      const allUsers = await storage.getAllUsers();
+      const activeSessions = await storage.getAllActiveChatSessions();
+      
+      // Check specific users from local migration
+      const wiktoriaUser = allUsers.find(u => u.email === 'wiktoriatopajew@gmail.com');
+      const cipeukUser = allUsers.find(u => u.username === 'cipeuk');
+      const lolakUser = allUsers.find(u => u.username === 'lolak');
+      
+      res.json({
+        success: true,
+        migrationVerification: {
+          totalUsers: allUsers.length,
+          totalSessions: activeSessions.length,
+          database: "PostgreSQL (Production Render)",
+          timestamp: new Date().toISOString(),
+          sampleUsers: {
+            wiktoriaExists: !!wiktoriaUser,
+            wiktoriaIsAdmin: wiktoriaUser?.isAdmin || false,
+            cipeukExists: !!cipeukUser,
+            lolakExists: !!lolakUser
+          },
+          usernames: allUsers.slice(0, 10).map(u => u.username),
+          environment: process.env.NODE_ENV || 'unknown'
+        }
+      });
+      
+    } catch (error) {
+      console.error("Migration verification error:", error);
+      res.status(500).json({ 
+        error: "Verification failed", 
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Emergency admin promotion endpoint - only works once
   app.post("/api/emergency/promote-admin", rateLimit({ windowMs: 60000, max: 1 }), async (req, res) => {
     try {
