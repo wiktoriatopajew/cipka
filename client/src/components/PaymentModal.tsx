@@ -45,21 +45,22 @@ function StripeCheckoutForm({ onSuccess, email, currentPrice }: { onSuccess: (pa
     setIsProcessing(true);
 
     try {
-      // Add timeout wrapper
+      // Try without redirect for simplicity and faster processing
+      console.log("Attempting payment confirmation without redirect...");
+      
       const confirmPaymentPromise = stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: window.location.origin,
           receipt_email: email,
         },
         redirect: "if_required",
       });
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Payment confirmation timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('Payment confirmation timeout after 45 seconds')), 45000)
       );
 
-      console.log("Calling stripe.confirmPayment with timeout...");
+      console.log("Calling stripe.confirmPayment (no redirect, 45s timeout)...");
       const result = await Promise.race([confirmPaymentPromise, timeoutPromise]) as any;
       const { error, paymentIntent } = result;
 
@@ -941,6 +942,9 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
                     Debug: Stripe loaded, clientSecret present. Rendering Elements...
                   </div>
                   <div style={{ border: '1px solid blue', minHeight: '100px', padding: '10px' }}>
+                    <div className="text-xs text-blue-600 mb-2">
+                      For testing use: 4242 4242 4242 4242, exp: 12/25, cvc: 123
+                    </div>
                     <Elements key={clientSecret} stripe={stripeInstance} options={{ clientSecret }}>
                       <StripeCheckoutForm onSuccess={handleStripeSuccess} email={email} currentPrice={currentPrice} />
                     </Elements>
