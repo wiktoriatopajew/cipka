@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,10 +42,22 @@ export default function VehicleSelector({ onSubmit, className }: VehicleSelector
     engine: "",
     issue: ""
   });
+  
+  const detailsFormRef = useRef<HTMLDivElement>(null);
 
   const handleTypeSelect = (type: string) => {
     setSelectedType(type);
     setVehicleInfo(prev => ({ ...prev, type }));
+    
+    // Scroll to details form on mobile after a short delay to let the form render
+    setTimeout(() => {
+      if (detailsFormRef.current) {
+        detailsFormRef.current.scrollIntoView({ 
+          behavior: "smooth", 
+          block: "start" 
+        });
+      }
+    }, 100);
   };
 
   const handleSubmit = () => {
@@ -86,7 +98,7 @@ export default function VehicleSelector({ onSubmit, className }: VehicleSelector
 
         {/* Vehicle Details Form */}
         {selectedType && (
-          <div className="space-y-4 border-t pt-6">
+          <div ref={detailsFormRef} className="space-y-4 border-t pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="make">Make/Brand</Label>
