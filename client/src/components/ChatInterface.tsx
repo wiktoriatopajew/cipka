@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useChatSounds } from "@/utils/chatSounds";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Attachment {
   id: string;
@@ -47,19 +48,24 @@ export default function ChatInterface({
   const [inputValue, setInputValue] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previousMessageCount, setPreviousMessageCount] = useState(0);
+  const [userJustSentMessage, setUserJustSentMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { playMessageSent, playMessageReceived, initializeAudio } = useChatSounds();
+  const isMobile = useIsMobile();
 
   // Get messages for this chat session
-  const { data: messages = [], refetch: refetchMessages } = useQuery<Message[]>({
+  const { data: messagesRaw = [], refetch: refetchMessages } = useQuery<Message[]>({
     queryKey: ["/api/chat/sessions", sessionId, "messages"],
     enabled: !!sessionId && hasAccess,
     refetchInterval: 2000, // Poll every 2 seconds for new messages
   });
+
+  // Memoize messages to prevent unnecessary re-renders
+  const messages = useMemo(() => messagesRaw, [messagesRaw]);
 
   // Initialize audio on first user interaction
   useEffect(() => {
@@ -109,11 +115,14 @@ export default function ChatInterface({
     },
     onSuccess: () => {
       setInputValue("");
+      setUserJustSentMessage(true); // Mark that user just sent a message
       refetchMessages();
       // Play sent message sound
       playMessageSent();
-      // Keep focus on input after sending
-      setTimeout(() => inputRef.current?.focus(), 100);
+      // Keep focus on input after sending (but not on mobile to prevent page scroll)
+      if (!isMobile) {
+        setTimeout(() => inputRef.current?.focus(), 150);
+      }
     },
     onError: (error: any) => {
       if (error?.blocked || error?.message?.includes("blocked")) {
@@ -187,8 +196,40 @@ export default function ChatInterface({
     },
   });
 
-  // Play notification sound for new admin messages
+  // Play notification sound for new admin messages and handle auto-scroll
   const prevMessagesCount = useRef(messages.length);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  
+  // Check if user is near bottom of chat (to decide whether to auto-scroll)
+  useEffect(() => {
+    const checkScrollPosition = () => {
+      const container = scrollContainerRef.current;
+      if (container) {
+        // On mobile, use larger threshold due to virtual keyboard issues
+        const threshold = isMobile ? 200 : 100; // pixels from bottom
+        const isNear = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+        setIsNearBottom(isNear);
+      }
+    };
+
+    const handleScroll = (e: Event) => {
+      // Prevent scroll events from bubbling up to parent elements on mobile
+      if (isMobile) {
+        e.stopPropagation();
+      }
+      checkScrollPosition();
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      // Check initial position
+      checkScrollPosition();
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [isMobile]);
+
   useEffect(() => {
     if (messages.length > prevMessagesCount.current) {
       const newMessages = messages.slice(prevMessagesCount.current);
@@ -200,17 +241,48 @@ export default function ChatInterface({
         audio.volume = 0.3;
         audio.play().catch(err => console.log('Audio play failed:', err));
       }
+      
+      // Handle scrolling based on context
+      if (userJustSentMessage) {
+        // User just sent a message - always scroll to bottom and reset flag
+        // On mobile, use longer timeout to account for virtual keyboard
+        const scrollTimeout = isMobile ? 300 : 100;
+        setTimeout(() => {
+          if (isMobile && scrollContainerRef.current) {
+            // On mobile: scroll the chat container, not the whole page
+            scrollContainerRef.current.scrollTo({
+              top: scrollContainerRef.current.scrollHeight,
+              behavior: "smooth"
+            });
+          } else {
+            // On desktop: use scrollIntoView as before
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }
+          setIsNearBottom(true);
+          setUserJustSentMessage(false);
+        }, scrollTimeout);
+      } else if (!isMobile && isNearBottom && hasAdminMessage) {
+        // Desktop: auto-scroll for admin messages if user was near bottom
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      } else if (isMobile && hasAdminMessage) {
+        // Mobile: Never auto-scroll for admin messages - just play sound
+        // User can manually scroll to see new messages
+        console.log('New admin message received, but not auto-scrolling on mobile');
+      }
     }
     prevMessagesCount.current = messages.length;
-  }, [messages]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isNearBottom, userJustSentMessage, isMobile]);
 
   const sendMessage = async () => {
     if (!inputValue.trim() || !hasAccess) return;
+    
+    // On mobile, blur the input before sending to hide virtual keyboard
+    if (isMobile && inputRef.current) {
+      inputRef.current.blur();
+    }
+    
     sendMessageMutation.mutate(inputValue.trim());
   };
 
@@ -221,12 +293,12 @@ export default function ChatInterface({
     }
   };
 
-  // Focus input on mount
+  // Focus input on mount (but not on mobile to prevent page scroll)
   useEffect(() => {
-    if (hasAccess) {
+    if (hasAccess && !isMobile) {
       inputRef.current?.focus();
     }
-  }, [hasAccess]);
+  }, [hasAccess, isMobile]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -358,7 +430,7 @@ export default function ChatInterface({
 
   return (
     <Card className={cn("h-full flex flex-col", className)}>
-      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+      <CardContent className="flex-1 flex flex-col p-0 overflow-hidden" style={isMobile ? { touchAction: 'pan-y' } : undefined}>
         {/* Vehicle Info Header */}
         {vehicleInfo && (
           <div className="border-b p-4 bg-muted/30 flex-shrink-0">
@@ -373,7 +445,11 @@ export default function ChatInterface({
             )}
           </div>
         )}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+        <div 
+          ref={scrollContainerRef} 
+          className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0"
+          onTouchMove={isMobile ? (e) => e.stopPropagation() : undefined}
+        >
           {messages.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <div className="space-y-2">
