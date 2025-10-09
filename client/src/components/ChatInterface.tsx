@@ -46,11 +46,13 @@ export default function ChatInterface({
 }: ChatInterfaceProps) {
   const [inputValue, setInputValue] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previousMessageCount, setPreviousMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { playMessageSent, playMessageReceived, initializeAudio } = useChatSounds();
 
   // Get messages for this chat session
   const { data: messages = [], refetch: refetchMessages } = useQuery<Message[]>({
@@ -58,6 +60,44 @@ export default function ChatInterface({
     enabled: !!sessionId && hasAccess,
     refetchInterval: 2000, // Poll every 2 seconds for new messages
   });
+
+  // Initialize audio on first user interaction
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      initializeAudio();
+      // Remove listeners after first interaction
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, [initializeAudio]);
+
+  // Detect new messages and play sounds
+  useEffect(() => {
+    if (messages.length > 0) {
+      // If we have a previous count and new messages arrived
+      if (previousMessageCount > 0 && messages.length > previousMessageCount) {
+        // Check if the new message is from admin (received) or user (sent)
+        const newMessages = messages.slice(previousMessageCount);
+        const latestMessage = newMessages[newMessages.length - 1];
+        
+        if (latestMessage.senderType === 'admin') {
+          playMessageReceived();
+        }
+      }
+      setPreviousMessageCount(messages.length);
+    }
+  }, [messages, previousMessageCount, playMessageReceived]);
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -70,6 +110,8 @@ export default function ChatInterface({
     onSuccess: () => {
       setInputValue("");
       refetchMessages();
+      // Play sent message sound
+      playMessageSent();
       // Keep focus on input after sending
       setTimeout(() => inputRef.current?.focus(), 100);
     },
