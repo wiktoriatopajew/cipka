@@ -268,7 +268,7 @@ export default function Home() {
               />
             </div>
             <div className="space-y-6">
-              <OnlineMechanics />
+              <OnlineMechanics disableAutoScroll={true} />
               <Card>
                 <CardHeader>
                   <CardTitle>Session Info</CardTitle>

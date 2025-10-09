@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,14 +17,26 @@ interface Mechanic {
 
 interface OnlineMechanicsProps {
   className?: string;
+  disableAutoScroll?: boolean; // Add prop to disable auto-scroll behavior
 }
 
-export default function OnlineMechanics({ className }: OnlineMechanicsProps) {
+export default function OnlineMechanics({ className, disableAutoScroll = false }: OnlineMechanicsProps) {
   const onlineCount = useMechanicsCount(); // Available mechanics count (not busy)
-  const globalMechanics = useGlobalMechanics(); // Global mechanics list from server
+  const globalMechanics = useGlobalMechanics(disableAutoScroll); // Disable auto-update during chat
+  
+  // Memoize the mechanics list to prevent unnecessary re-renders
+  const stableMechanics = useMemo(() => {
+    return globalMechanics.map((mechanic: any) => ({
+      id: mechanic.id,
+      username: mechanic.username,
+      responseTime: mechanic.responseTime,
+      isOnline: mechanic.isOnline,
+      isBusy: mechanic.isBusy
+    }));
+  }, [globalMechanics]);
   
   // Calculate local counts for display
-  const availableCount = globalMechanics.filter((m: any) => m.isOnline && !m.isBusy).length;
+  const availableCount = stableMechanics.filter((m: any) => m.isOnline && !m.isBusy).length;
   const displayCount = availableCount > 0 ? availableCount : onlineCount; // Fallback to hook value
 
   return (
@@ -40,7 +52,7 @@ export default function OnlineMechanics({ className }: OnlineMechanicsProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3 max-h-96 overflow-y-auto">
-          {globalMechanics.map((mechanic: any) => (
+          {stableMechanics.map((mechanic: any) => (
             <div 
               key={mechanic.id} 
               className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover-elevate"

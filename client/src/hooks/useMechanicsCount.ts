@@ -80,7 +80,7 @@ export const useMechanicsCount = () => {
 };
 
 // Export function to get global mechanics list (for OnlineMechanics component)
-export const useGlobalMechanics = () => {
+export const useGlobalMechanics = (disableAutoUpdate = false) => {
   const [mechanics, setMechanics] = useState<any[]>([]);
   
   useEffect(() => {
@@ -101,15 +101,20 @@ export const useGlobalMechanics = () => {
     // Add this component as a listener
     listeners.add(listener);
     
-    // Set up interval to check for updates
-    const interval = setInterval(updateMechanics, 2 * 60 * 1000);
+    // Set up interval to check for updates - but only if auto-update is enabled
+    let interval: NodeJS.Timeout | null = null;
+    if (!disableAutoUpdate) {
+      interval = setInterval(updateMechanics, 2 * 60 * 1000);
+    }
 
     // Cleanup
     return () => {
       listeners.delete(listener);
-      clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+      }
     };
-  }, []);
+  }, [disableAutoUpdate]);
 
   return mechanics;
 };
