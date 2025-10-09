@@ -18,6 +18,7 @@ import CMSPanel from "@/components/CMSPanel";
 import { useToast } from "@/hooks/use-toast";
 import ScrollToTop from "@/components/ScrollToTop";
 import GoogleAdsPanel from "@/components/GoogleAdsPanel";
+import { useChatSounds } from "@/utils/chatSounds";
 import AppConfigPanel from "@/components/AppConfigPanel";
 
 interface AdminData {
@@ -82,6 +83,8 @@ export default function AdminPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { playMessageSent, playMessageReceived, initializeAudio } = useChatSounds();
+  const [previousMessageCount, setPreviousMessageCount] = useState(0);
 
   // Check authentication status on mount
   useEffect(() => {
@@ -209,6 +212,7 @@ export default function AdminPanel() {
       setNewMessage("");
       refetchMessages();
       refetchDashboard();
+      playMessageSent();
     },
   });
 
@@ -367,6 +371,38 @@ export default function AdminPanel() {
       });
     }
   };
+
+  // Initialize audio on user interaction
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      initializeAudio();
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+  }, [initializeAudio]);
+
+  // Detect new messages for sound notification
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      if (previousMessageCount > 0 && messages.length > previousMessageCount) {
+        // New message received
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.senderType === 'user') {
+          // Message from user to admin
+          playMessageReceived();
+        }
+      }
+      setPreviousMessageCount(messages.length);
+    }
+  }, [messages, previousMessageCount, playMessageReceived]);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
