@@ -275,8 +275,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Payment intent request for amount: ${amount}`);
       console.log(`Amount type: ${typeof amount}`);
       
-      // Valid pricing tiers
-      const validAmounts = [14.99, 49.99, 79.99];
+      // Valid pricing tiers (including discounted prices for referrals)
+      const validAmounts = [
+        14.99, 49.99, 79.99,  // Regular prices
+        11.99, 39.99, 63.99   // Discounted prices (80% of regular)
+      ];
       
       if (!amount || !validAmounts.includes(amount)) {
         console.log(`Invalid amount requested: ${amount}`);
