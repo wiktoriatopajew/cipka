@@ -532,18 +532,30 @@ export class MemStorage implements IStorage {
   }
 
   async getDashboardStats(startDate?: string, endDate?: string): Promise<any> {
+    // Calculate real revenue from in-memory subscriptions
+    const subscriptionsArray = Array.from(this.subscriptions.values());
+    const totalRevenue = subscriptionsArray.reduce((sum, sub) => {
+      return sum + (parseFloat(String(sub.amount)) || 0);
+    }, 0);
+
     return {
       totalUsers: this.users.size,
       activeUsers: Array.from(this.users.values()).filter(u => u.isOnline).length,
-      totalRevenue: 0,
+      totalRevenue: totalRevenue,
       newSubscriptions: this.subscriptions.size,
       totalSessions: this.chatSessions.size
     };
   }
 
   async getRevenueAnalytics(startDate?: string, endDate?: string): Promise<any> {
+    // Calculate real revenue from in-memory subscriptions
+    const subscriptionsArray = Array.from(this.subscriptions.values());
+    const totalRevenue = subscriptionsArray.reduce((sum, sub) => {
+      return sum + (parseFloat(String(sub.amount)) || 0);
+    }, 0);
+
     return {
-      totalRevenue: 0,
+      totalRevenue: totalRevenue,
       revenueByPeriod: [],
       topCustomers: [],
       paymentMethods: {}
