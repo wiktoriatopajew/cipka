@@ -13,7 +13,7 @@ const VEHICLE_TYPES = [
   { id: "boat", name: "Boat/Watercraft", icon: Ship },
   { id: "bus", name: "Bus", icon: Bus },
   { id: "truck", name: "Truck", icon: Truck },
-  { id: "construction", name: "Construction Equipment", icon: Hammer },
+  { id: "construction", name: "Construction", icon: Hammer },
   { id: "rv", name: "RV/Camper", icon: Home },
   { id: "other", name: "Other", icon: MoreHorizontal },
 ];

@@ -89,18 +89,18 @@ export default function StatsSection() {
 
         {/* Additional Trust Elements */}
         <div className="mt-12 text-center">
-          <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Live chat with real humans</span>
+              <span className="text-wrap">Live chat with real humans</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>No hidden fees</span>
+              <span className="text-wrap">No hidden fees</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span>Instant responses</span>
+              <span className="text-wrap">Instant responses</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
