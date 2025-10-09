@@ -308,8 +308,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   let globalMechanics: any[] = [];
   let mechanicsLastUpdate = 0;
   const MECHANICS_UPDATE_INTERVAL = 15 * 60 * 1000; // 15 minutes
-  const MECHANIC_ROTATION_INTERVAL = 5 * 60 * 1000; // 5 minutes - status and count changes
-  let lastRotationUpdate = 0;
+  const MECHANIC_STATUS_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes - individual status changes
+  let lastStatusCheck = 0;
   let currentOnlineCount = 10; // Dynamic number of online mechanics (5-20)
 
   // Pool of mechanic usernames 
@@ -375,39 +375,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       mechanicsLastUpdate = now;
-      lastRotationUpdate = now;
+      lastStatusCheck = now;
     }
-    // Rotate mechanic statuses every 5 minutes (change available count and busy statuses)
-    else if (now - lastRotationUpdate >= MECHANIC_ROTATION_INTERVAL) {
-      // Every 5 minutes change the number of available mechanics (5-20)
-      currentOnlineCount = Math.floor(Math.random() * 16) + 5;
+    // Check individual mechanic status changes every 2 minutes
+    else if (now - lastStatusCheck >= MECHANIC_STATUS_CHECK_INTERVAL) {
+      // Gradual changes every 2 minutes - some mechanics log in/out naturally
       
-      // Assign new statuses based on new available count
+      // Randomly adjust online count by ±1-3 mechanics for natural fluctuation
+      const change = Math.floor(Math.random() * 7) - 3; // -3 to +3
+      currentOnlineCount = Math.max(5, Math.min(20, currentOnlineCount + change));
+      
+      // Update individual mechanic statuses more naturally
       globalMechanics.forEach((mechanic, index) => {
         const timeSinceLastChange = now - mechanic.lastStatusChange;
         
-        // All mechanics are always "online", but busy/available status changes
+        // All mechanics are always "online" but availability changes
         mechanic.isOnline = true;
         
         if (index < currentOnlineCount) {
-          // Mechanics within available limit - can be available or busy
-          if (timeSinceLastChange >= 2 * 60 * 1000) { // possibility of change every 2 minutes
-            mechanic.isBusy = Math.random() < 0.3; // 30% szans na busy
+          // Mechanics within available limit - some naturally become busy/available
+          if (timeSinceLastChange >= 60 * 1000 && Math.random() < 0.4) { // 40% chance of status change every minute
+            mechanic.isBusy = Math.random() < 0.25; // 25% chance to be busy
             mechanic.lastStatusChange = now;
           }
         } else {
-          // Mechanicy poza limitem - zawsze busy
-          mechanic.isBusy = true;
+          // Mechanics beyond limit - mostly busy but some might become available
+          if (Math.random() < 0.1) { // 10% chance to become available
+            mechanic.isBusy = false;
+          } else {
+            mechanic.isBusy = true;
+          }
           mechanic.lastStatusChange = now;
         }
         
-        // Sometimes change response time for realism
-        if (Math.random() < 0.1) {
+        // Occasionally update response time for realism
+        if (Math.random() < 0.15) { // 15% chance
           mechanic.responseTime = `${Math.floor(Math.random() * 3) + 1}-${Math.floor(Math.random() * 5) + 3} min`;
         }
       });
       
-      lastRotationUpdate = now;
+      lastStatusCheck = now;
     }
     
     return globalMechanics;
