@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -20,9 +20,31 @@ interface OnlineMechanicsProps {
   disableAutoScroll?: boolean; // Add prop to disable auto-scroll behavior
 }
 
-export default function OnlineMechanics({ className, disableAutoScroll = false }: OnlineMechanicsProps) {
+function OnlineMechanicsComponent({ className, disableAutoScroll = false }: OnlineMechanicsProps) {
   const onlineCount = useMechanicsCount(); // Available mechanics count (not busy)
-  const globalMechanics = useGlobalMechanics(disableAutoScroll); // Disable auto-update during chat
+  const globalMechanics = useGlobalMechanics(); // Always get mechanics (they update every 2 min)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  
+  // Save scroll position before mechanics update (if disableAutoScroll is true)
+  useEffect(() => {
+    if (disableAutoScroll && containerRef.current) {
+      const container = containerRef.current.querySelector('.space-y-3.max-h-96.overflow-y-auto') as HTMLElement;
+      if (container) {
+        setScrollPosition(container.scrollTop);
+      }
+    }
+  }, [globalMechanics, disableAutoScroll]);
+  
+  // Restore scroll position after mechanics update (if disableAutoScroll is true)
+  useEffect(() => {
+    if (disableAutoScroll && containerRef.current && scrollPosition > 0) {
+      const container = containerRef.current.querySelector('.space-y-3.max-h-96.overflow-y-auto') as HTMLElement;
+      if (container) {
+        container.scrollTop = scrollPosition;
+      }
+    }
+  }, [globalMechanics, scrollPosition, disableAutoScroll]);
   
   // Memoize the mechanics list to prevent unnecessary re-renders
   const stableMechanics = useMemo(() => {
@@ -40,7 +62,7 @@ export default function OnlineMechanics({ className, disableAutoScroll = false }
   const displayCount = availableCount > 0 ? availableCount : onlineCount; // Fallback to hook value
 
   return (
-    <Card className={className}>
+    <Card className={className} ref={containerRef}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Available Mechanics</span>
@@ -99,3 +121,6 @@ export default function OnlineMechanics({ className, disableAutoScroll = false }
     </Card>
   );
 }
+
+// Memoize component to prevent unnecessary re-renders that could cause scroll
+export default React.memo(OnlineMechanicsComponent);
