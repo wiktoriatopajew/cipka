@@ -19,6 +19,7 @@ import LoginModal from "@/components/LoginModal";
 import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollToTop";
 import ReferralPanel from "@/components/ReferralPanel";
+import { PricingPlans } from "@/components/PricingPlans";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, AlertTriangle } from "lucide-react";
@@ -430,8 +431,15 @@ export default function Home() {
             </div>
             
             {user ? (
-              <div className="max-w-2xl mx-auto">
-                <VehicleSelector onSubmit={handleVehicleSubmit} />
+              <div className="space-y-12">
+                {/* Show pricing plans for logged-in users without subscription */}
+                <div className="max-w-6xl mx-auto">
+                  <PricingPlans onPlanSelect={handlePlanSelect} />
+                </div>
+                
+                <div className="max-w-2xl mx-auto">
+                  <VehicleSelector onSubmit={handleVehicleSubmit} />
+                </div>
               </div>
             ) : (
               <div className="grid lg:grid-cols-3 gap-8">
