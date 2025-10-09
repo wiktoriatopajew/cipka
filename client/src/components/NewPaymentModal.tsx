@@ -347,40 +347,124 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
         <div className="space-y-4">
           {/* Plan Selection and Pricing */}
           {step === "payment" && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold">{planDetails.name}</h3>
-                    <p className="text-sm text-muted-foreground">{planDetails.duration} access</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center space-x-2">
-                      {hasReferralDiscount && (
-                        <Badge variant="secondary" className="text-xs">
-                          20% OFF
-                        </Badge>
-                      )}
-                      <div className="text-2xl font-bold">${currentPrice}</div>
-                    </div>
-                    {hasReferralDiscount && (
-                      <div className="text-sm text-muted-foreground line-through">
-                        ${originalPrice}
+            <>
+              {/* Plan Selector */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Choose Your Plan</Label>
+                <div className="grid gap-2">
+                  {/* Basic Plan */}
+                  <Card 
+                    className={`cursor-pointer transition-all hover:shadow-sm ${
+                      currentSelectedPlan === 'basic' 
+                        ? 'ring-2 ring-primary border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setCurrentSelectedPlan('basic')}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-sm">Basic Plan</h4>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5">1 Day</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Quick help & basic support</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-base font-bold">$14.99</div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Professional Plan */}
+                  <Card 
+                    className={`cursor-pointer transition-all hover:shadow-sm ${
+                      currentSelectedPlan === 'professional' 
+                        ? 'ring-2 ring-primary border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setCurrentSelectedPlan('professional')}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-sm">Professional Plan</h4>
+                            <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-xs px-1.5 py-0.5">30 Days</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Priority support & advanced features</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-base font-bold">$49.99</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Expert Plan */}
+                  <Card 
+                    className={`cursor-pointer transition-all hover:shadow-sm ${
+                      currentSelectedPlan === 'expert' 
+                        ? 'ring-2 ring-primary border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => setCurrentSelectedPlan('expert')}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-sm">Expert Plan</h4>
+                            <Badge className="bg-green-100 text-green-800 border-green-200 text-xs px-1.5 py-0.5">360 Days</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Full access & dedicated experts</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-base font-bold">$79.99</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-                
-                <div className="space-y-2">
-                  {planDetails.features.map((feature, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <CheckCircle className="w-4 h-4 text-success" />
-                      <span className="text-sm">{feature}</span>
+              </div>
+
+              {/* Selected Plan Details */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold">{planDetails.name}</h3>
+                      <p className="text-sm text-muted-foreground">{planDetails.duration} access</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="text-right">
+                      <div className="flex items-center space-x-2">
+                        {hasReferralDiscount && (
+                          <Badge variant="secondary" className="text-xs">
+                            20% OFF
+                          </Badge>
+                        )}
+                        <div className="text-2xl font-bold">${currentPrice}</div>
+                      </div>
+                      {hasReferralDiscount && (
+                        <div className="text-sm text-muted-foreground line-through">
+                          ${originalPrice}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {planDetails.features.map((feature, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <CheckCircle className="w-4 h-4 text-success" />
+                        <span className="text-sm">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {/* Payment Form */}

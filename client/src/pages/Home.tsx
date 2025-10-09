@@ -431,15 +431,8 @@ export default function Home() {
             </div>
             
             {user ? (
-              <div className="space-y-12">
-                {/* Show pricing plans for logged-in users without subscription */}
-                <div className="max-w-6xl mx-auto">
-                  <PricingPlans onPlanSelect={handlePlanSelect} />
-                </div>
-                
-                <div className="max-w-2xl mx-auto">
-                  <VehicleSelector onSubmit={handleVehicleSubmit} />
-                </div>
+              <div className="max-w-2xl mx-auto">
+                <VehicleSelector onSubmit={handleVehicleSubmit} />
               </div>
             ) : (
               <div className="grid lg:grid-cols-3 gap-8">
