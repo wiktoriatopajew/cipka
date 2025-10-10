@@ -755,8 +755,7 @@ export class PostgresStorage implements IStorage {
       // Generuj UUID dla nowego użytkownika
       userCopy.id = randomUUID();
       
-      // Ustaw domyślne wartości, jeśli nie są podane
-      const now = new Date();
+      // Ustaw domyślne wartości, jeśli nie są podane (daty pozostaw bazie)
       const result = await db.insert(users).values({
         ...userCopy,
         password: hashedPassword,
@@ -764,8 +763,7 @@ export class PostgresStorage implements IStorage {
         hasSubscription: userCopy.hasSubscription ?? false,
         isOnline: userCopy.isOnline ?? false,
         isBlocked: userCopy.isBlocked ?? false,
-        createdAt: userCopy.createdAt ?? now,
-        lastSeen: userCopy.lastSeen ?? now,
+        // createdAt i lastSeen - pozwól bazie ustawić defaultNow()
       }).returning();
       return result[0];
     } catch (error: any) {
@@ -860,26 +858,13 @@ export class PostgresStorage implements IStorage {
   const subCopy: any = { ...subscription };
   subCopy.id = randomUUID();
   
-  // Ustaw domyślne wartości, jeśli nie są podane
-  const now = new Date();
-  subCopy.purchasedAt = subCopy.purchasedAt ?? now;
-  
-  // Sprawdź czy expiresAt jest prawidłową datą
+  // Ustaw domyślne wartości tylko dla expiresAt (purchasedAt zostaw bazie)
   if (!subCopy.expiresAt) {
     // Jeśli brak daty, ustaw na 30 dni od teraz
+    const now = new Date();
     subCopy.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  } else if (subCopy.expiresAt instanceof Date) {
-    // Jeśli to już Date, zostaw bez zmian
-    // subCopy.expiresAt = subCopy.expiresAt;
-  } else {
-    // Jeśli to string, spróbuj przekonwertować
-    const dateFromString = new Date(subCopy.expiresAt);
-    if (isNaN(dateFromString.getTime())) {
-      subCopy.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    } else {
-      subCopy.expiresAt = dateFromString;
-    }
   }
+  // purchasedAt zostaw bazie - użyje defaultNow()
     try {
       const result = await db.insert(subscriptions).values(subCopy).returning();
       // Update user hasSubscription flag
