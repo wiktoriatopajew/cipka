@@ -1611,8 +1611,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { paymentIntentId, paypalOrderId, paymentMethod, amount } = req.body;
       console.log('Dane płatności:', { paymentIntentId, paypalOrderId, paymentMethod, amount });
 
-      // Validate amount
-      const validAmounts = [14.99, 49.99, 79.99];
+      // Validate amount (including discounted prices for referral codes)
+      const validAmounts = [
+        14.99, 49.99, 79.99,  // Regular prices
+        11.99, 39.99, 63.99   // Discounted prices (80% of regular) for referral codes
+      ];
       if (!amount || !validAmounts.includes(parseFloat(amount))) {
         console.log('Niepoprawna kwota:', amount);
         return res.status(400).json({ error: "Invalid amount" });
@@ -1623,12 +1626,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const SUBSCRIPTION_AMOUNT = parseFloat(amount);
       const STRIPE_AMOUNT_CENTS = Math.round(SUBSCRIPTION_AMOUNT * 100);
 
-      // Function to get subscription days based on amount
+      // Function to get subscription days based on amount (including discounted prices)
       const getSubscriptionDays = (amount: number) => {
         switch (amount) {
           case 14.99: return 1;    // Basic: 1 dzień
+          case 11.99: return 1;    // Basic (discounted): 1 dzień
           case 49.99: return 30;   // Professional: 30 dni  
+          case 39.99: return 30;   // Professional (discounted): 30 dni
           case 79.99: return 366;  // Expert: 366 dni
+          case 63.99: return 366;  // Expert (discounted): 366 dni
           default: return 1;       // domyślnie 1 dzień
         }
       };
