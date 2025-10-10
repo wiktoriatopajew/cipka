@@ -1825,9 +1825,18 @@ export class PostgresStorage implements IStorage {
   }
 
   async linkAttachmentToMessage(attachmentId: string, messageId: string): Promise<void> {
-    await db.update(attachments)
-      .set({ messageId })
-      .where(eq(attachments.id, attachmentId));
+    try {
+      console.log(`🔗 RAW SQL linkAttachmentToMessage: ${attachmentId} -> ${messageId}`);
+      await db.execute(sql`
+        UPDATE attachments 
+        SET message_id = ${messageId} 
+        WHERE id = ${attachmentId}
+      `);
+      console.log(`✅ RAW SQL attachment linked successfully`);
+    } catch (error) {
+      console.error('❌ RAW SQL linkAttachmentToMessage error:', error);
+      throw error;
+    }
   }
 
   // Referral methods implementation
