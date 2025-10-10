@@ -1695,7 +1695,8 @@ export class PostgresStorage implements IStorage {
   // Attachment methods
   async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
     try {
-      console.log(`🔥 RAW SQL createAttachment for message ${attachment.messageId}`);
+      const messageInfo = attachment.messageId ? `for message ${attachment.messageId}` : 'for admin upload (no message)';
+      console.log(`🔥 RAW SQL createAttachment ${messageInfo}`);
       
       const attachmentId = randomUUID();
       const now = new Date().toISOString();
@@ -1712,13 +1713,14 @@ export class PostgresStorage implements IStorage {
         expiresAt = expires.toISOString();
       }
       
-      // RAW SQL insert
+      // RAW SQL insert - handle optional messageId for admin uploads
+      const messageId = attachment.messageId || null;
       const result = await db.execute(sql`
         INSERT INTO attachments (
           id, message_id, file_name, original_name, file_size, 
           mime_type, file_path, uploaded_at, expires_at
         ) VALUES (
-          ${attachmentId}, ${attachment.messageId}, ${attachment.fileName}, 
+          ${attachmentId}, ${messageId}, ${attachment.fileName}, 
           ${attachment.originalName}, ${attachment.fileSize}, ${attachment.mimeType}, 
           ${attachment.filePath}, ${now}::timestamp, ${expiresAt}::timestamp
         ) RETURNING *
