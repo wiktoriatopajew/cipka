@@ -685,59 +685,75 @@ export class PostgresStorage implements IStorage {
     }
   }
   
-  // Helper function to convert Date objects to ISO strings for SQLite
-  private convertDates(obj: any): any {
-    if (obj instanceof Date) {
-      return obj.toISOString();
+
+
+  // =================================================================
+  // POSTGRESQL DATE HELPERS - Centralne funkcje do pracy z datami
+  // =================================================================
+  
+  /**
+   * Konwertuje wartość z bazy na obiekt Date
+   * Drizzle PostgreSQL zwraca daty jako stringi ISO
+   */
+  private toDate(value: any): Date {
+    if (!value) return new Date();
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? new Date() : date;
     }
-    if (typeof obj === 'object' && obj !== null) {
-      const converted = { ...obj };
-      for (const key in converted) {
-        const value = converted[key];
-        if (value instanceof Date) {
-          converted[key] = value.toISOString();
-        } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
-          // Already an ISO string, keep as is
-          converted[key] = value;
-        } else if (value && typeof value === 'object' && 'toISOString' in value) {
-          // Check if it looks like a Date object but might be malformed
-          try {
-            converted[key] = value.toISOString();
-          } catch (error) {
-            console.warn(`Failed to convert date field ${key}:`, value, error);
-            // Keep original value if conversion fails
-            converted[key] = value;
-          }
-        }
-      }
-      return converted;
-    }
-    return obj;
+    return new Date();
   }
 
-  // Helper function to fix subscription dates
-  private fixSubscriptionDates(sub: any): any {
+  /**
+   * Konwertuje Date na string ISO dla bazy danych
+   * Bezpieczna konwersja która zawsze działa
+   */
+  private toISOString(date: any): string {
+    if (!date) return new Date().toISOString();
+    
+    // Jeśli to już string, sprawdź czy to poprawny ISO
+    if (typeof date === 'string') {
+      try {
+        return new Date(date).toISOString();
+      } catch {
+        return new Date().toISOString();
+      }
+    }
+    
+    // Jeśli to Date, konwertuj
+    if (date instanceof Date) {
+      return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+    }
+    
+    // Fallback - nowa data
+    return new Date().toISOString();
+  }
+
+  /**
+   * Naprawia wszystkie pola dat w obiekcie użytkownika
+   */
+  private normalizeUserDates(user: any): any {
+    if (!user) return user;
+    
+    return {
+      ...user,
+      createdAt: this.toDate(user.createdAt),
+      lastSeen: this.toDate(user.lastSeen)
+    };
+  }
+
+  /**
+   * Naprawia wszystkie pola dat w subskrypcji
+   */
+  private normalizeSubscriptionDates(sub: any): any {
     if (!sub) return sub;
     
-    const now = new Date();
-    
-    // Napraw purchasedAt jeśli jest null lub Invalid Date
-    const purchasedDate = new Date(sub.purchasedAt);
-    if (!sub.purchasedAt || sub.purchasedAt === 'Invalid Date' || isNaN(purchasedDate.getTime())) {
-      sub.purchasedAt = now;
-      console.log(`🔧 Fixed invalid purchasedAt for subscription ${sub.id}: set to ${now.toISOString()}`);
-    }
-    
-    // Napraw expiresAt jeśli jest null lub Invalid Date
-    const expiresDate = new Date(sub.expiresAt);
-    if (!sub.expiresAt || sub.expiresAt === 'Invalid Date' || isNaN(expiresDate.getTime())) {
-      // Ustaw na właściwą liczbę dni od teraz
-      const daysToAdd = sub.amount === 14.99 ? 1 : (sub.amount === 49.99 ? 30 : 366);
-      sub.expiresAt = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-      console.log(`🔧 Fixed invalid expiresAt for subscription ${sub.id}: set to ${sub.expiresAt.toISOString()}`);
-    }
-    
-    return sub;
+    return {
+      ...sub,
+      purchasedAt: this.toDate(sub.purchasedAt),
+      expiresAt: this.toDate(sub.expiresAt)
+    };
   }
 
   // Function to fix all existing subscriptions with invalid dates
@@ -781,24 +797,7 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  // Helper function to fix user dates
-  private fixUserDates(user: any): any {
-    if (!user) return user;
-    
-    const now = new Date();
-    
-    // Napraw createdAt jeśli jest null lub Invalid Date
-    if (!user.createdAt || (user.createdAt instanceof Date && isNaN(user.createdAt.getTime()))) {
-      user.createdAt = now;
-    }
-    
-    // Napraw lastSeen jeśli jest null lub Invalid Date
-    if (!user.lastSeen || (user.lastSeen instanceof Date && isNaN(user.lastSeen.getTime()))) {
-      user.lastSeen = now;
-    }
-    
-    return user;
-  }
+
 
   async initAdminUser() {
     const adminEmail = process.env.ADMIN_EMAIL;
@@ -841,16 +840,23 @@ export class PostgresStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     if (result[0]) {
-      console.log(`🔍 Raw user data from DB for ${id}:`, {
-        user: result[0],
+      console.log(`🔍 Raw PostgreSQL user for ${id}:`, {
+        lastSeenRaw: result[0].lastSeen,
         lastSeenType: typeof result[0].lastSeen,
-        lastSeenConstructor: result[0].lastSeen?.constructor?.name,
-        lastSeenIsDate: result[0].lastSeen instanceof Date,
-        lastSeenValue: result[0].lastSeen,
-        hasToISOString: typeof result[0].lastSeen?.toISOString === 'function'
+        createdAtRaw: result[0].createdAt,
+        createdAtType: typeof result[0].createdAt
       });
+      
+      // Znormalizuj daty z PostgreSQL
+      const normalizedUser = this.normalizeUserDates(result[0]);
+      console.log(`✅ User ${id} dates normalized:`, {
+        lastSeen: normalizedUser.lastSeen,
+        createdAt: normalizedUser.createdAt
+      });
+      
+      return normalizedUser;
     }
-    return result[0] ? this.fixUserDates(result[0]) : undefined;
+    return undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -885,7 +891,7 @@ export class PostgresStorage implements IStorage {
       }).returning();
       const createdUser = result[0];
       // Napraw daty jeśli są nieprawidłowe
-      return this.fixUserDates(createdUser);
+      return this.normalizeUserDates(createdUser);
     } catch (error: any) {
       console.error('SQL error podczas tworzenia użytkownika:', error?.message || error);
       // Spróbuj utworzyć wszystkie wymagane tabele jeśli nie istnieją
@@ -954,46 +960,39 @@ export class PostgresStorage implements IStorage {
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
     try {
-      console.log(`🔄 Updating user ${id} with:`, updates);
+      console.log(`🔄 PostgreSQL updateUser ${id} with:`, updates);
       
-      // Manually convert Date objects to ISO strings for safe database storage
-      const safeUpdates: any = { ...updates };
-      for (const key in safeUpdates) {
-        const value = safeUpdates[key];
-        console.log(`🔍 Processing field ${key}:`, {
-          value: value,
-          type: typeof value,
-          isDate: value instanceof Date,
-          constructor: value?.constructor?.name,
-          hasToISOString: typeof value?.toISOString === 'function'
-        });
-        
-        if (value instanceof Date) {
-          safeUpdates[key] = value.toISOString();
-          console.log(`🔄 Converted ${key} from Date to ISO string: ${safeUpdates[key]}`);
-        } else if (value && typeof value === 'object' && typeof value.toISOString === 'function') {
-          // Some objects that look like Date but aren't Date instances
-          try {
-            safeUpdates[key] = value.toISOString();
-            console.log(`🔄 Converted ${key} from Date-like object to ISO string: ${safeUpdates[key]}`);
-          } catch (err) {
-            console.error(`❌ Failed to convert ${key}:`, err);
-            throw new Error(`Cannot convert field ${key} to ISO string: ${err instanceof Error ? err.message : String(err)}`);
-          }
-        }
+      // Bezpieczna konwersja wszystkich dat dla PostgreSQL
+      const dbUpdates: any = { ...updates };
+      
+      // Konwertuj pola dat na ISO stringi dla bazy
+      if (dbUpdates.lastSeen) {
+        dbUpdates.lastSeen = this.toISOString(dbUpdates.lastSeen);
+        console.log(`� Converted lastSeen to ISO: ${dbUpdates.lastSeen}`);
       }
       
-      console.log(`🔄 Safe updates:`, safeUpdates);
+      if (dbUpdates.createdAt) {
+        dbUpdates.createdAt = this.toISOString(dbUpdates.createdAt);
+        console.log(`📅 Converted createdAt to ISO: ${dbUpdates.createdAt}`);
+      }
+      
+      console.log(`� Saving to PostgreSQL:`, dbUpdates);
       
       const result = await db.update(users)
-        .set(safeUpdates)
+        .set(dbUpdates)
         .where(eq(users.id, id))
         .returning();
       
-      console.log(`✅ User ${id} updated successfully`);
-      return result[0];
+      if (result[0]) {
+        // Normalizuj daty w wynikach z bazy
+        const normalizedUser = this.normalizeUserDates(result[0]);
+        console.log(`✅ User ${id} updated, dates normalized`);
+        return normalizedUser;
+      }
+      
+      return undefined;
     } catch (error) {
-      console.error(`❌ Error updating user ${id}:`, error);
+      console.error(`❌ PostgreSQL updateUser error for ${id}:`, error);
       throw error;
     }
   }
@@ -1033,8 +1032,8 @@ export class PostgresStorage implements IStorage {
           .where(eq(users.id, subscription.userId));
       }
       const createdSub = result[0];
-      // Napraw daty jeśli są nieprawidłowe
-      return this.fixSubscriptionDates(createdSub);
+      // Znormalizuj daty z PostgreSQL
+      return this.normalizeSubscriptionDates(createdSub);
     } catch (error) {
   console.error('SQL error podczas dodawania subskrypcji:', error);
       throw error;
@@ -1046,8 +1045,8 @@ export class PostgresStorage implements IStorage {
       .where(eq(subscriptions.userId, userId))
       .orderBy(desc(subscriptions.purchasedAt));
     
-    // Napraw daty w każdej subskrypcji
-    return subs.map((sub: any) => this.fixSubscriptionDates(sub));
+    // Znormalizuj daty w każdej subskrypcji z PostgreSQL
+    return subs.map((sub: any) => this.normalizeSubscriptionDates(sub));
   }
 
   async getAllActiveSubscriptions(): Promise<Subscription[]> {
@@ -1056,27 +1055,19 @@ export class PostgresStorage implements IStorage {
   }
 
   async hasActiveSubscription(userId: string): Promise<boolean> {
-    const userSubscriptions = await this.getUserSubscriptions(userId); // Use getUserSubscriptions which applies fixSubscriptionDates
+    // getUserSubscriptions już normalizuje daty, więc sub.expiresAt to zawsze Date
+    const userSubscriptions = await this.getUserSubscriptions(userId);
     
     const now = new Date();
     const hasActive = userSubscriptions.some((sub: Subscription) => {
       if (sub.status !== "active") return false;
       if (!sub.expiresAt) return false;
       
-      // Napraw datę jeśli jest string
-      let expiresDate = sub.expiresAt;
-      if (typeof expiresDate === 'string') {
-        expiresDate = new Date(expiresDate);
-      }
-      
-      // Sprawdź czy data jest prawidłowa
-      if (!(expiresDate instanceof Date) || isNaN(expiresDate.getTime())) {
-        console.log(`❌ Invalid expiresAt date in hasActiveSubscription for subscription ${sub.id}:`, sub.expiresAt);
-        return false;
-      }
-      
+      // sub.expiresAt to już Date dzięki normalizeSubscriptionDates
+      const expiresDate = sub.expiresAt;
       const isActive = expiresDate > now;
-      console.log(`📅 hasActiveSubscription check for ${userId}: subscription ${sub.id} expires ${expiresDate.toISOString()}, now ${now.toISOString()}, active: ${isActive}`);
+      
+      console.log(`📅 PostgreSQL subscription check for ${userId}: ${sub.id} expires ${expiresDate.toISOString()}, active: ${isActive}`);
       return isActive;
     });
     
