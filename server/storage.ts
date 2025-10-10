@@ -1691,5 +1691,5 @@ export class PostgresStorage implements IStorage {
   }
 }
 
-// Use PostgresStorage (now with SQLite) for all environments
-export const storage = new MemStorage();
+// Use PostgresStorage for all environments
+export const storage = new PostgresStorage();
