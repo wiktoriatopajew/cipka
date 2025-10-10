@@ -1345,20 +1345,82 @@ export class PostgresStorage implements IStorage {
   }
 
   async getChatSession(id: string): Promise<ChatSession | undefined> {
-    const result = await db.select().from(chatSessions)
-      .where(eq(chatSessions.id, id)).limit(1);
-    return result[0];
+    try {
+      console.log(`🔥 RAW SQL getChatSession: ${id}`);
+      const result = await db.execute(sql`
+        SELECT id, user_id as "userId", vehicle_info as "vehicleInfo", 
+               status, created_at, updated_at 
+        FROM chat_sessions 
+        WHERE id = ${id} 
+        LIMIT 1
+      `);
+      
+      if (result.rows[0]) {
+        const rawSession = result.rows[0] as any;
+        return {
+          id: rawSession.id,
+          userId: rawSession.userId,
+          vehicleInfo: rawSession.vehicleInfo,
+          status: rawSession.status,
+          createdAt: this.parseTimestamp(rawSession.created_at),
+          updatedAt: this.parseTimestamp(rawSession.updated_at)
+        };
+      }
+      return undefined;
+    } catch (error) {
+      console.error("❌ RAW SQL getChatSession error:", error);
+      throw error;
+    }
   }
 
   async getUserChatSessions(userId: string): Promise<ChatSession[]> {
-    return await db.select().from(chatSessions)
-      .where(eq(chatSessions.userId, userId))
-      .orderBy(desc(chatSessions.lastActivity));
+    try {
+      console.log(`🔥 RAW SQL getUserChatSessions: ${userId}`);
+      const result = await db.execute(sql`
+        SELECT id, user_id as "userId", vehicle_info as "vehicleInfo", 
+               status, created_at, updated_at 
+        FROM chat_sessions 
+        WHERE user_id = ${userId} 
+        ORDER BY updated_at DESC
+      `);
+      
+      return result.rows.map((rawSession: any) => ({
+        id: rawSession.id,
+        userId: rawSession.userId,
+        vehicleInfo: rawSession.vehicleInfo,
+        status: rawSession.status,
+        createdAt: this.parseTimestamp(rawSession.created_at),
+        updatedAt: this.parseTimestamp(rawSession.updated_at)
+      }));
+    } catch (error) {
+      console.error("❌ RAW SQL getUserChatSessions error:", error);
+      throw error;
+    }
   }
 
   async getAllActiveChatSessions(): Promise<ChatSession[]> {
-    return await db.select().from(chatSessions)
-      .where(eq(chatSessions.status, "active"));
+    try {
+      console.log("🔥 RAW SQL getAllActiveChatSessions");
+      const result = await db.execute(sql`
+        SELECT id, user_id as "userId", vehicle_info as "vehicleInfo", 
+               status, created_at, updated_at 
+        FROM chat_sessions 
+        WHERE status = 'active' 
+        ORDER BY updated_at DESC
+      `);
+      
+      return result.rows.map((rawSession: any) => ({
+        id: rawSession.id,
+        userId: rawSession.userId,
+        vehicleInfo: rawSession.vehicleInfo,
+        status: rawSession.status,
+        createdAt: this.parseTimestamp(rawSession.created_at),
+        updatedAt: this.parseTimestamp(rawSession.updated_at)
+      }));
+    } catch (error) {
+      console.error("❌ RAW SQL getAllActiveChatSessions error:", error);
+      throw error;
+    }
   }
 
   async updateChatSession(id: string, updates: Partial<ChatSession>): Promise<ChatSession | undefined> {
