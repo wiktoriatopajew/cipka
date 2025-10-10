@@ -45,7 +45,7 @@ const client = new Client({
     },
   },
 });
-const ordersController = new OrdersController(client);
+export const ordersController = new OrdersController(client);
 const oAuthAuthorizationController = new OAuthAuthorizationController(client);
 
 /* Token generation helpers */
@@ -83,6 +83,15 @@ export async function createPaypalOrder(req: Request, res: Response) {
       return res
         .status(400)
         .json({ error: "Invalid currency. Currency is required." });
+    }
+    
+    // Security: Only allow USD payments
+    if (currency !== "USD") {
+      return res
+        .status(400)
+        .json({ 
+          error: `Invalid currency: ${currency}. Only USD payments are accepted.` 
+        });
     }
 
     if (!intent) {

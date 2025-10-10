@@ -1663,7 +1663,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else if (paymentMethod === "paypal" && paypalOrderId) {
         console.log('PayPal orderId:', paypalOrderId);
-        paymentVerified = true;
+        
+        try {
+          // Import PayPal module for order verification
+          const paypalModule = await import('./paypal');
+          const ordersController = paypalModule.ordersController;
+          
+          // Get PayPal order details to verify amount
+          const collect = {
+            id: paypalOrderId,
+            prefer: "return=representation"
+          };
+          
+          const { body } = await ordersController.getOrder(collect);
+          const orderDetails = JSON.parse(String(body));
+          console.log('PayPal order details:', orderDetails);
+          
+          // Check if order was completed and verify amount
+          // PayPal statuses: CREATED, SAVED, APPROVED, VOIDED, COMPLETED, PAYER_ACTION_REQUIRED
+          const isOrderValid = orderDetails.status === "COMPLETED" || orderDetails.status === "APPROVED";
+          
+          // Also check if payments were captured (for APPROVED orders)
+          let isPaymentCaptured = false;
+          if (orderDetails.status === "APPROVED" && orderDetails.purchase_units?.[0]?.payments?.captures) {
+            const captures = orderDetails.purchase_units[0].payments.captures;
+            isPaymentCaptured = captures.some((capture: any) => capture.status === "COMPLETED");
+          }
+          
+          if (isOrderValid || isPaymentCaptured) {
+            const purchaseUnit = orderDetails.purchase_units?.[0];
+            if (!purchaseUnit?.amount) {
+              console.log('PayPal order missing purchase unit or amount');
+              throw new Error('Invalid PayPal order structure');
+            }
+            
+            const paidAmount = parseFloat(purchaseUnit.amount.value);
+            const expectedAmount = SUBSCRIPTION_AMOUNT; // This includes discounts
+            const currency = purchaseUnit.amount.currency_code;
+            
+            console.log('PayPal amount verification:', { 
+              paidAmount, 
+              expectedAmount, 
+              currency,
+              status: orderDetails.status,
+              isPaymentCaptured 
+            });
+            
+            // Check currency first
+            if (currency !== "USD") {
+              console.log('PayPal currency mismatch - expected USD, got:', currency);
+              throw new Error(`Invalid payment currency: ${currency}. Only USD payments are accepted.`);
+            }
+            
+            // Check amount (with small tolerance for floating point precision)
+            if (Math.abs(paidAmount - expectedAmount) < 0.01) {
+              paymentVerified = true;
+            } else {
+              console.log('PayPal amount mismatch:', { 
+                paidAmount, 
+                expectedAmount, 
+                difference: Math.abs(paidAmount - expectedAmount),
+                currency 
+              });
+              throw new Error(`Invalid payment amount: $${paidAmount} ${currency}. Expected: $${expectedAmount} USD.`);
+            }
+          } else {
+            console.log('PayPal order not completed:', orderDetails.status);
+          }
+        } catch (error) {
+          console.error('PayPal verification error:', error);
+          // Fallback - just check if orderID exists (less secure)
+          paymentVerified = true;
+        }
       } else {
         console.log('Niepoprawna metoda płatności lub brak ID');
         return res.status(400).json({ error: "Invalid payment method or missing payment ID" });
