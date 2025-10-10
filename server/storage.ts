@@ -863,9 +863,22 @@ export class PostgresStorage implements IStorage {
   // Ustaw domyślne wartości, jeśli nie są podane
   const now = new Date();
   subCopy.purchasedAt = subCopy.purchasedAt ?? now;
-  if (!subCopy.expiresAt || isNaN(new Date(subCopy.expiresAt).getTime())) {
-    // Jeśli expiresAt nie jest prawidłową datą, ustaw na 30 dni od teraz
+  
+  // Sprawdź czy expiresAt jest prawidłową datą
+  if (!subCopy.expiresAt) {
+    // Jeśli brak daty, ustaw na 30 dni od teraz
     subCopy.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  } else if (subCopy.expiresAt instanceof Date) {
+    // Jeśli to już Date, zostaw bez zmian
+    // subCopy.expiresAt = subCopy.expiresAt;
+  } else {
+    // Jeśli to string, spróbuj przekonwertować
+    const dateFromString = new Date(subCopy.expiresAt);
+    if (isNaN(dateFromString.getTime())) {
+      subCopy.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      subCopy.expiresAt = dateFromString;
+    }
   }
     try {
       const result = await db.insert(subscriptions).values(subCopy).returning();

@@ -1274,10 +1274,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Function to get subscription days based on amount
       const getSubscriptionDays = (amount: number) => {
         switch (amount) {
-          case 14.99: return 1;    // Basic: 1 day
-          case 49.99: return 30;   // Professional: 30 days  
-          case 79.99: return 360;  // Expert: 360 days
-          default: return 1;
+          case 14.99: return 7;    // Basic: 7 dni
+          case 49.99: return 30;   // Professional: 30 dni  
+          case 79.99: return 365;  // Expert: 365 dni (rok)
+          default: return 7;       // domyślnie 7 dni
         }
       };
 
