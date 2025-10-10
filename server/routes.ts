@@ -583,6 +583,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEBUG FILE UPLOAD OPERATIONS
+  app.post("/api/debug/test-file-operations", async (req, res) => {
+    try {
+      console.log("🧪 DEBUG: Testing file upload operations");
+      
+      const { messageId, sessionId } = req.body;
+      
+      if (!messageId && !sessionId) {
+        return res.status(400).json({ error: "messageId or sessionId required" });
+      }
+      
+      let result: any = {};
+      
+      // Test getMessageAttachments if messageId provided
+      if (messageId) {
+        console.log(`🧪 Testing getMessageAttachments: messageId=${messageId}`);
+        try {
+          const attachments = await storage.getMessageAttachments(messageId);
+          result.getAttachments = { success: true, count: attachments.length, data: attachments };
+        } catch (error) {
+          result.getAttachments = { success: false, error: error.message };
+        }
+      }
+      
+      // Test recent messages with attachments if sessionId provided
+      if (sessionId) {
+        console.log(`🧪 Testing session messages with attachments: sessionId=${sessionId}`);
+        try {
+          const messages = await storage.getSessionMessages(sessionId);
+          const messagesWithAttachments = [];
+          
+          for (const message of messages.slice(-5)) { // Last 5 messages
+            const attachments = await storage.getMessageAttachments(message.id);
+            messagesWithAttachments.push({
+              id: message.id,
+              content: message.content,
+              senderType: message.senderType,
+              attachmentCount: attachments.length,
+              attachments: attachments
+            });
+          }
+          
+          result.sessionMessages = { 
+            success: true, 
+            totalMessages: messages.length,
+            recentWithAttachments: messagesWithAttachments 
+          };
+        } catch (error) {
+          result.sessionMessages = { success: false, error: error.message };
+        }
+      }
+      
+      res.json({
+        success: true,
+        messageId: messageId,
+        sessionId: sessionId,
+        results: result,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error("❌ Debug file operations error:", error);
+      res.status(500).json({ error: "File operations test failed", details: error.message });
+    }
+  });
+
   // SIMPLE DEBUG SUBSCRIPTION DAYS
   app.post("/api/debug/simple-add-days", async (req, res) => {
     try {
