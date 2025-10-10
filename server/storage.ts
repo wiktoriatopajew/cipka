@@ -754,6 +754,26 @@ export class PostgresStorage implements IStorage {
   }
 
   /**
+   * Bezpieczne parsowanie timestamp z PostgreSQL RAW SQL
+   */
+  private parseTimestamp(value: any): Date {
+    if (!value || value === null || value === undefined) {
+      return new Date();
+    }
+    
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return value;
+    }
+    
+    if (typeof value === 'string') {
+      const parsed = new Date(value);
+      return isNaN(parsed.getTime()) ? new Date() : parsed;
+    }
+    
+    return new Date();
+  }
+
+  /**
    * Naprawia wszystkie pola dat w subskrypcji
    */
   private normalizeSubscriptionDates(sub: any): any {
@@ -859,51 +879,121 @@ export class PostgresStorage implements IStorage {
 
   // User methods
   async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    if (result[0]) {
-      console.log(`🔍 Raw PostgreSQL user for ${id}:`, {
-        lastSeenRaw: result[0].lastSeen,
-        lastSeenType: typeof result[0].lastSeen,
-        createdAtRaw: result[0].createdAt,
-        createdAtType: typeof result[0].createdAt
-      });
+    try {
+      console.log(`🔥 RAW SQL getUser for ID: ${id}`);
+      const result = await db.execute(sql`
+        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
+               "referralCode", "referredBy", created_at, last_seen 
+        FROM users 
+        WHERE id = ${id} 
+        LIMIT 1
+      `);
       
-      // Znormalizuj daty z PostgreSQL
-      const normalizedUser = this.normalizeUserDates(result[0]);
-      console.log(`✅ User ${id} dates normalized:`, {
-        lastSeen: normalizedUser.lastSeen,
-        createdAt: normalizedUser.createdAt
-      });
-      
-      return normalizedUser;
+      if (result.rows[0]) {
+        const rawUser = result.rows[0] as any;
+        console.log(`🔍 Raw PostgreSQL user for ${id}:`, {
+          lastSeenRaw: rawUser.last_seen,
+          lastSeenType: typeof rawUser.last_seen,
+          createdAtRaw: rawUser.created_at,
+          createdAtType: typeof rawUser.created_at
+        });
+        
+        const user = {
+          id: rawUser.id,
+          username: rawUser.username,
+          email: rawUser.email,
+          password: rawUser.password,
+          isAdmin: rawUser.isAdmin,
+          isBlocked: rawUser.isBlocked,
+          hasSubscription: rawUser.hasSubscription,
+          referralCode: rawUser.referralCode,
+          referredBy: rawUser.referredBy,
+          createdAt: this.parseTimestamp(rawUser.created_at),
+          lastSeen: this.parseTimestamp(rawUser.last_seen)
+        };
+        
+        console.log(`✅ User ${id} dates normalized:`, {
+          lastSeen: user.lastSeen,
+          createdAt: user.createdAt
+        });
+        return user;
+      }
+      return undefined;
+    } catch (error) {
+      console.error("❌ RAW SQL getUser error:", error);
+      throw error;
     }
-    return undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-    return result[0];
+    try {
+      console.log(`🔥 RAW SQL getUserByUsername: ${username}`);
+      const result = await db.execute(sql`
+        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
+               "referralCode", "referredBy", created_at, last_seen 
+        FROM users 
+        WHERE username = ${username} 
+        LIMIT 1
+      `);
+      
+      if (result.rows[0]) {
+        const rawUser = result.rows[0] as any;
+        return {
+          id: rawUser.id,
+          username: rawUser.username,
+          email: rawUser.email,
+          password: rawUser.password,
+          isAdmin: rawUser.isAdmin,
+          isBlocked: rawUser.isBlocked,
+          hasSubscription: rawUser.hasSubscription,
+          referralCode: rawUser.referralCode,
+          referredBy: rawUser.referredBy,
+          createdAt: this.parseTimestamp(rawUser.created_at),
+          lastSeen: this.parseTimestamp(rawUser.last_seen)
+        };
+      }
+      return undefined;
+    } catch (error) {
+      console.error("❌ RAW SQL getUserByUsername error:", error);
+      throw error;
+    }
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
-      console.log(`🔍 TEMP FIX: getUserByEmail using DRIZZLE ORM instead of RAW SQL for: "${email}"`);
+      console.log(`� RAW SQL getUserByEmail: ${email}`);
+      const result = await db.execute(sql`
+        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
+               "referralCode", "referredBy", created_at, last_seen 
+        FROM users 
+        WHERE email = ${email} 
+        LIMIT 1
+      `);
       
-      // TEMPORARY FIX: Use Drizzle ORM instead of RAW SQL (since RAW SQL has issues with current DATABASE_URL)
-      const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      
-      if (result.length === 0) {
-        console.log(`❌ No user found with email "${email}"`);
-        return undefined;
+      if (result.rows[0]) {
+        const rawUser = result.rows[0] as any;
+        console.log(`✅ RAW SQL: Found user "${email}" - isAdmin: ${rawUser.isAdmin}`);
+        return {
+          id: rawUser.id,
+          username: rawUser.username,
+          email: rawUser.email,
+          password: rawUser.password,
+          isAdmin: rawUser.isAdmin,
+          isBlocked: rawUser.isBlocked,
+          hasSubscription: rawUser.hasSubscription,
+          referralCode: rawUser.referralCode,
+          referredBy: rawUser.referredBy,
+          createdAt: this.parseTimestamp(rawUser.created_at),
+          lastSeen: this.parseTimestamp(rawUser.last_seen)
+        };
       }
       
-      const user = result[0];
-      console.log(`✅ DRIZZLE: Found user "${email}" - isAdmin: ${user.isAdmin}`);
-      return user;
+      console.log(`❌ No user found with email "${email}"`);
+      return undefined;
       
     } catch (error) {
-      console.error('❌ getUserByEmail error (Drizzle ORM):', error);
-      return undefined;
+      console.error('❌ RAW SQL getUserByEmail error:', error);
+      throw error;
     }
   }
 
@@ -1082,7 +1172,32 @@ export class PostgresStorage implements IStorage {
   }
 
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users);
+    try {
+      console.log("🔥 RAW SQL getAllUsers");
+      const result = await db.execute(sql`
+        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
+               "referralCode", "referredBy", created_at, last_seen 
+        FROM users 
+        ORDER BY created_at DESC
+      `);
+      
+      return result.rows.map((rawUser: any) => ({
+        id: rawUser.id,
+        username: rawUser.username,
+        email: rawUser.email,
+        password: rawUser.password,
+        isAdmin: rawUser.isAdmin,
+        isBlocked: rawUser.isBlocked,
+        hasSubscription: rawUser.hasSubscription,
+        referralCode: rawUser.referralCode,
+        referredBy: rawUser.referredBy,
+        createdAt: this.parseTimestamp(rawUser.created_at),
+        lastSeen: this.parseTimestamp(rawUser.last_seen)
+      }));
+    } catch (error) {
+      console.error("❌ RAW SQL getAllUsers error:", error);
+      throw error;
+    }
   }
 
   async verifyPassword(email: string, password: string): Promise<User | null> {
