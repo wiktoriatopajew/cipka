@@ -877,57 +877,22 @@ export class PostgresStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
-      console.log(`🔍 DEBUG getUserByEmail called with: "${email}"`);
+      console.log(`🔍 TEMP FIX: getUserByEmail using DRIZZLE ORM instead of RAW SQL for: "${email}"`);
       
-      // RAW SQL operation
-      const result = await db.execute(sql`
-        SELECT 
-          id, username, email, password, is_admin as "isAdmin", 
-          has_subscription as "hasSubscription", is_online as "isOnline", 
-          is_blocked as "isBlocked", referral_code as "referralCode",
-          referred_by as "referredBy", last_seen as "lastSeen", 
-          created_at as "createdAt"
-        FROM users 
-        WHERE email = ${email}
-        LIMIT 1
-      `);
-
-      console.log(`🔍 DEBUG SQL result: rows=${result.rows.length}, columns=${result.rows[0] ? Object.keys(result.rows[0]).join(',') : 'none'}`);
+      // TEMPORARY FIX: Use Drizzle ORM instead of RAW SQL (since RAW SQL has issues with current DATABASE_URL)
+      const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
       
-      if (result.rows.length === 0) {
-        console.log(`❌ DEBUG: No user found with email "${email}"`);
+      if (result.length === 0) {
+        console.log(`❌ No user found with email "${email}"`);
         return undefined;
       }
       
-      const row: any = result.rows[0];
-      console.log(`🔍 DEBUG: Raw row data:`, {
-        id: row.id,
-        email: row.email,
-        username: row.username,
-        hasPassword: !!row.password,
-        isAdmin: row.isAdmin,
-        isAdminType: typeof row.isAdmin
-      });
+      const user = result[0];
+      console.log(`✅ DRIZZLE: Found user "${email}" - isAdmin: ${user.isAdmin}`);
+      return user;
       
-      const userData = {
-        id: row.id,
-        username: row.username,
-        email: row.email,
-        password: row.password,
-        isAdmin: row.isAdmin,
-        hasSubscription: row.hasSubscription,
-        isOnline: row.isOnline,
-        isBlocked: row.isBlocked,
-        referralCode: row.referralCode,
-        referredBy: row.referredBy,
-        lastSeen: row.lastSeen ? new Date(row.lastSeen) : null,
-        createdAt: new Date(row.createdAt)
-      };
-      
-      console.log(`✅ DEBUG: Returning user data for "${email}"`);
-      return userData;
     } catch (error) {
-      console.error('❌ RAW SQL getUserByEmail error:', error);
+      console.error('❌ getUserByEmail error (Drizzle ORM):', error);
       return undefined;
     }
   }
