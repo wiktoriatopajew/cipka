@@ -2421,38 +2421,82 @@ export class PostgresStorage implements IStorage {
 
   async getGoogleAdsConfig(): Promise<GoogleAdsConfig | null> {
     try {
-      const config = await db.select()
+      console.log('🔥 RAW SQL getGoogleAdsConfig');
+      const result = await db.select()
         .from(googleAdsConfig)
         .limit(1);
       
-      return config.length > 0 ? config[0] : null;
+      console.log('🔍 PostgreSQL Google Ads result:', {
+        result: typeof result,
+        length: result?.length,
+        hasRows: !!result?.rows,
+        rawResult: result
+      });
+      
+      // Defensive mapping for different PostgreSQL response structures
+      const configs = result?.rows || (Array.isArray(result) ? result : []);
+      const config = configs.length > 0 ? configs[0] : null;
+      
+      if (config) {
+        console.log('✅ Google Ads config found:', {
+          id: config.id,
+          conversion_id: config.conversion_id || config.conversionId,
+          enabled: config.enabled
+        });
+        
+        // Map database column names to expected property names
+        return {
+          id: config.id,
+          conversionId: config.conversion_id || config.conversionId,
+          purchaseLabel: config.purchase_label || config.purchaseLabel,
+          signupLabel: config.signup_label || config.signupLabel,
+          enabled: config.enabled,
+          updatedAt: this.parseTimestamp(config.updated_at || config.updatedAt)
+        };
+      }
+      
+      console.log('❌ No Google Ads config found');
+      return null;
     } catch (error) {
-      console.error('Get Google Ads config error:', error);
+      console.error('❌ RAW SQL getGoogleAdsConfig error:', error);
       return null;
     }
   }
 
   async updateGoogleAdsConfig(config: Partial<InsertGoogleAdsConfig>): Promise<{ success: boolean; message: string }> {
     try {
+      console.log('🔥 RAW SQL updateGoogleAdsConfig:', config);
+      
       // Check if config exists
       const existingConfig = await this.getGoogleAdsConfig();
+      const now = new Date().toISOString();
       
       if (existingConfig) {
+        console.log('✅ Updating existing Google Ads config with ID:', existingConfig.id);
         // Update existing config
-        await db.update(googleAdsConfig)
+        const result = await db.update(googleAdsConfig)
           .set({
-            ...config,
+            conversionId: config.conversionId || existingConfig.conversionId,
+            purchaseLabel: config.purchaseLabel || existingConfig.purchaseLabel,
+            signupLabel: config.signupLabel || existingConfig.signupLabel,
+            enabled: config.enabled !== undefined ? config.enabled : existingConfig.enabled,
             updatedAt: new Date()
           })
-          .where(eq(googleAdsConfig.id, existingConfig.id));
+          .where(eq(googleAdsConfig.id, existingConfig.id))
+          .returning();
+          
+        console.log('✅ Google Ads config updated:', result);
       } else {
+        console.log('✅ Creating new Google Ads config');
         // Create new config
-        await db.insert(googleAdsConfig).values({
+        const result = await db.insert(googleAdsConfig).values({
           conversionId: config.conversionId || 'AW-CONVERSION_ID',
           purchaseLabel: config.purchaseLabel || 'PURCHASE_CONVERSION_LABEL',
           signupLabel: config.signupLabel || 'SIGNUP_CONVERSION_LABEL',
           enabled: config.enabled || false,
-        });
+        }).returning();
+        
+        console.log('✅ New Google Ads config created:', result);
       }
 
       return {
@@ -2460,10 +2504,10 @@ export class PostgresStorage implements IStorage {
         message: "Google Ads configuration updated successfully"
       };
     } catch (error) {
-      console.error('Update Google Ads config error:', error);
+      console.error('❌ RAW SQL updateGoogleAdsConfig error:', error);
       return {
         success: false,
-        message: "Failed to update Google Ads configuration"
+        message: `Failed to update Google Ads configuration: ${error.message}`
       };
     }
   }
