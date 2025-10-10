@@ -885,7 +885,7 @@ export class PostgresStorage implements IStorage {
       return await db.select().from(messages)
         .where(
           and(
-            eq(messages.isRead, 0), // Use 0 instead of false for SQLite compatibility
+              eq(messages.isRead, false), // Use false for PostgreSQL compatibility
             eq(messages.senderType, "user")
           )
         );
