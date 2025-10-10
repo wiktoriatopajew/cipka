@@ -1546,6 +1546,8 @@ export class PostgresStorage implements IStorage {
 
   async addSubscriptionDays(userId: string, days: number): Promise<{ success: boolean; message: string; newExpiryDate: string }> {
     try {
+      console.log(`🔥 RAW SQL addSubscriptionDays: userId=${userId}, days=${days}`);
+      
       // RAW SQL: Get user's active subscription
       const result = await db.execute(sql`
         SELECT id, user_id, expires_at, amount, status
@@ -1554,6 +1556,8 @@ export class PostgresStorage implements IStorage {
         ORDER BY expires_at DESC 
         LIMIT 1
       `);
+
+      console.log(`🔍 Found ${result.rows.length} active subscriptions for user ${userId}`);
 
       if (result.rows.length > 0) {
         // User has active subscription - extend it
@@ -1575,35 +1579,12 @@ export class PostgresStorage implements IStorage {
           newExpiryDate: newExpiryDate.toISOString()
         };
       } else {
-        // User has no active subscription - create new one
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + days);
-        const subscriptionId = randomUUID();
-        
-        // RAW SQL: Create new subscription
-        await db.execute(sql`
-          INSERT INTO subscriptions (id, user_id, amount, status, expires_at, purchased_at)
-          VALUES (
-            ${subscriptionId}, 
-            ${userId}, 
-            0, 
-            'active', 
-            ${expiresAt.toISOString()}::timestamp,
-            ${new Date().toISOString()}::timestamp
-          )
-        `);
-
-        // RAW SQL: Update user subscription status
-        await db.execute(sql`
-          UPDATE users 
-          SET has_subscription = true 
-          WHERE id = ${userId}
-        `);
-
+        // User has no active subscription - cannot add days without a base subscription
+        console.log(`❌ User ${userId} has no active subscription to extend`);
         return { 
-          success: true, 
-          message: `Created new ${days}-day subscription`,
-          newExpiryDate: expiresAt.toISOString()
+          success: false, 
+          message: `User has no active subscription. Please create a subscription first before adding days.`,
+          newExpiryDate: ""
         };
       }
     } catch (error) {
