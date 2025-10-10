@@ -1958,8 +1958,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat/sessions/:sessionId/upload", requireUser, upload.single('file'), async (req, res) => {
     try {
       const { sessionId } = req.params;
+      console.log(`🔥 USER UPLOAD: sessionId=${sessionId}, userId=${req.user?.id}, file=${req.file?.originalname}`);
       
       if (!req.file) {
+        console.log("❌ USER UPLOAD: No file uploaded");
         return res.status(400).json({ error: "No file uploaded" });
       }
 
@@ -2025,11 +2027,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ message, attachment });
     } catch (error) {
+      console.error("❌ USER UPLOAD ERROR:", error);
       // Clean up uploaded file on error
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
-      res.status(500).json({ error: "Failed to upload file" });
+      res.status(500).json({ error: "Failed to upload file", details: error.message });
     }
   });
 
