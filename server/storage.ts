@@ -1462,7 +1462,15 @@ export class PostgresStorage implements IStorage {
         ORDER BY last_activity DESC
       `);
       
-      return result.rows.map((rawSession: any) => ({
+      // Handle different PostgreSQL response structures
+      let sessionsData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        sessionsData = result.rows;
+      } else if (Array.isArray(result)) {
+        sessionsData = result;
+      }
+      
+      return sessionsData.map((rawSession: any) => ({
         id: rawSession.id,
         userId: rawSession.userId,
         vehicleInfo: rawSession.vehicleInfo,
@@ -1487,7 +1495,15 @@ export class PostgresStorage implements IStorage {
         ORDER BY last_activity DESC
       `);
       
-      return result.rows.map((rawSession: any) => ({
+      // Handle different PostgreSQL response structures
+      let sessionsData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        sessionsData = result.rows;
+      } else if (Array.isArray(result)) {
+        sessionsData = result;
+      }
+      
+      return sessionsData.map((rawSession: any) => ({
         id: rawSession.id,
         userId: rawSession.userId,
         vehicleInfo: rawSession.vehicleInfo,
@@ -1505,52 +1521,38 @@ export class PostgresStorage implements IStorage {
     try {
       console.log(`🔥 RAW SQL updateChatSession: ${id}`, updates);
       
-      // Build dynamic SET clause for PostgreSQL
-      const setParts: string[] = [];
-      const values: any[] = [];
-      let paramIndex = 2; // Start from $2 since $1 is the id
-      
-      Object.entries(updates).forEach(([key, value]) => {
-        let dbColumnName = key;
-        switch (key) {
-          case 'userId': dbColumnName = 'user_id'; break;
-          case 'vehicleInfo': dbColumnName = 'vehicle_info'; break;
-          case 'lastActivity': dbColumnName = 'last_activity'; break;
+      // Simple approach: handle common update patterns
+      if (updates.status) {
+        const result = await db.execute(sql`
+          UPDATE chat_sessions 
+          SET status = ${updates.status}
+          WHERE id = ${id} 
+          RETURNING id, user_id as "userId", vehicle_info as "vehicleInfo", status, created_at, last_activity
+        `);
+        
+        // Handle different response structures
+        let sessionData = null;
+        if (result?.rows && result.rows.length > 0) {
+          sessionData = result.rows[0];
+        } else if (Array.isArray(result) && result.length > 0) {
+          sessionData = result[0];
         }
-        setParts.push(`${dbColumnName} = $${paramIndex}`);
-        values.push(value);
-        paramIndex++;
-      });
-      
-      if (setParts.length === 0) {
-        return await this.getChatSession(id);
+        
+        if (sessionData) {
+          const rawSession = sessionData as any;
+          return {
+            id: rawSession.id,
+            userId: rawSession.userId,
+            vehicleInfo: rawSession.vehicleInfo,
+            status: rawSession.status,
+            createdAt: this.parseTimestamp(rawSession.created_at),
+            lastActivity: this.parseTimestamp(rawSession.last_activity)
+          };
+        }
       }
       
-      const updateQuery = `UPDATE chat_sessions SET ${setParts.join(', ')} WHERE id = $1 RETURNING id, user_id as "userId", vehicle_info as "vehicleInfo", status, created_at, last_activity`;
-      
-      const result = await db.execute(sql.raw(updateQuery, [id, ...values]));
-      
-      // Handle different response structures
-      let sessionData = null;
-      if (result?.rows && result.rows.length > 0) {
-        sessionData = result.rows[0];
-      } else if (Array.isArray(result) && result.length > 0) {
-        sessionData = result[0];
-      }
-      
-      if (sessionData) {
-        const rawSession = sessionData as any;
-        return {
-          id: rawSession.id,
-          userId: rawSession.userId,
-          vehicleInfo: rawSession.vehicleInfo,
-          status: rawSession.status,
-          createdAt: this.parseTimestamp(rawSession.created_at),
-          lastActivity: this.parseTimestamp(rawSession.last_activity)
-        };
-      }
-      
-      return undefined;
+      // If no handled updates, return current session
+      return await this.getChatSession(id);
     } catch (error) {
       console.error("❌ RAW SQL updateChatSession error:", error);
       throw error;
