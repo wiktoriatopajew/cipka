@@ -786,7 +786,9 @@ export class PostgresStorage implements IStorage {
 
   // Subscription methods
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
-    const result = await db.insert(subscriptions).values(subscription).returning();
+  const subCopy = { ...subscription };
+  subCopy.id = randomUUID();
+  const result = await db.insert(subscriptions).values(subCopy).returning();
     
     // Update user hasSubscription flag
     if (subscription.userId) {
