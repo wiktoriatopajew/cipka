@@ -1,5 +1,5 @@
 import { 
-  type User, type InsertUser,
+  type User,
   type Subscription, type InsertSubscription,
   type ChatSession, type InsertChatSession,
   type Message, type InsertMessage,
@@ -23,7 +23,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: Omit<User, 'id' | 'createdAt' | 'lastSeen'>): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   verifyPassword(email: string, password: string): Promise<User | null>;
@@ -177,7 +177,7 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: Omit<User, 'id' | 'createdAt' | 'lastSeen'>): Promise<User> {
     const id = randomUUID();
     
     // Hash the password before storing
@@ -685,13 +685,11 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async createUser(user: InsertUser): Promise<User> {
+  async createUser(user: Omit<User, 'id' | 'createdAt' | 'lastSeen'>): Promise<User> {
     try {
       const hashedPassword = await bcrypt.hash(user.password, 12);
       // Usuń pole 'id' z obiektu, aby pozwolić bazie ustawić domyślną wartość
-      // Usuń pole 'id' z obiektu, aby nie było przekazane do inserta
       const userCopy = { ...user };
-      delete userCopy.id;
       const result = await db.insert(users).values({
         ...userCopy,
         password: hashedPassword,
