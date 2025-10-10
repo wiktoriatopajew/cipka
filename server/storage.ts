@@ -1008,8 +1008,24 @@ export class PostgresStorage implements IStorage {
 
   // Chat session methods
   async createChatSession(session: InsertChatSession): Promise<ChatSession> {
-    const result = await db.insert(chatSessions).values(session).returning();
-    return result[0];
+    try {
+      // Ustaw domyślne wartości explicite
+      const sessionWithDefaults = {
+        ...session,
+        id: randomUUID(),
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        status: session.status || "active"
+      };
+      
+      console.log('🔧 Creating chat session:', sessionWithDefaults);
+      const result = await db.insert(chatSessions).values(sessionWithDefaults).returning();
+      console.log('✅ Chat session created successfully:', result[0].id);
+      return result[0];
+    } catch (error) {
+      console.error('❌ Error creating chat session:', error);
+      throw error;
+    }
   }
 
   async getChatSession(id: string): Promise<ChatSession | undefined> {

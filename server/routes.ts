@@ -1383,9 +1383,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Protected Chat Endpoints for Users (require authentication and subscription)
   app.post("/api/chat/sessions", requireUser, async (req, res) => {
     try {
+      console.log(`🚀 User ${req.user.username} (${req.user.id}) creating chat session...`);
+      
       // Check if user is blocked
       const currentUser = await storage.getUser(req.user.id);
       if (currentUser?.isBlocked) {
+        console.log(`❌ User ${req.user.username} is blocked`);
         return res.status(403).json({ 
           error: "Your account has been blocked. You cannot create new chats.",
           blocked: true 
@@ -1393,6 +1396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { vehicleInfo } = req.body;
+      console.log('🚗 Vehicle info:', vehicleInfo);
       
       const session = await storage.createChatSession({
         userId: req.user.id, // Use authenticated user ID from session
@@ -1400,9 +1404,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "active"
       });
       
+      console.log(`✅ Chat session created successfully for ${req.user.username}: ${session.id}`);
       res.json(session);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create chat session" });
+      console.error('❌ Failed to create chat session:', error);
+      res.status(500).json({ 
+        error: "Failed to create chat session",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
