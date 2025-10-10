@@ -877,6 +877,8 @@ export class PostgresStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
+      console.log(`🔍 DEBUG getUserByEmail called with: "${email}"`);
+      
       // RAW SQL operation
       const result = await db.execute(sql`
         SELECT 
@@ -890,10 +892,24 @@ export class PostgresStorage implements IStorage {
         LIMIT 1
       `);
 
-      if (result.rows.length === 0) return undefined;
+      console.log(`🔍 DEBUG SQL result: rows=${result.rows.length}, columns=${result.rows[0] ? Object.keys(result.rows[0]).join(',') : 'none'}`);
+      
+      if (result.rows.length === 0) {
+        console.log(`❌ DEBUG: No user found with email "${email}"`);
+        return undefined;
+      }
       
       const row: any = result.rows[0];
-      return {
+      console.log(`🔍 DEBUG: Raw row data:`, {
+        id: row.id,
+        email: row.email,
+        username: row.username,
+        hasPassword: !!row.password,
+        isAdmin: row.isAdmin,
+        isAdminType: typeof row.isAdmin
+      });
+      
+      const userData = {
         id: row.id,
         username: row.username,
         email: row.email,
@@ -907,6 +923,9 @@ export class PostgresStorage implements IStorage {
         lastSeen: row.lastSeen ? new Date(row.lastSeen) : null,
         createdAt: new Date(row.createdAt)
       };
+      
+      console.log(`✅ DEBUG: Returning user data for "${email}"`);
+      return userData;
     } catch (error) {
       console.error('❌ RAW SQL getUserByEmail error:', error);
       return undefined;
