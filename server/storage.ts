@@ -1350,8 +1350,38 @@ export class PostgresStorage implements IStorage {
   }
 
   async getAllActiveSubscriptions(): Promise<Subscription[]> {
-    return await db.select().from(subscriptions)
-      .where(eq(subscriptions.status, "active"));
+    try {
+      console.log(`🔥 RAW SQL getAllActiveSubscriptions`);
+      const result = await db.execute(sql`
+        SELECT id, user_id as "userId", amount, status, 
+               purchased_at, expires_at 
+        FROM subscriptions 
+        WHERE status = 'active'
+        ORDER BY purchased_at DESC
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let subscriptionsData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        subscriptionsData = result.rows;
+      } else if (Array.isArray(result)) {
+        subscriptionsData = result;
+      }
+      
+      console.log(`✅ Found ${subscriptionsData.length} active subscriptions`);
+      
+      return subscriptionsData.map((rawSub: any) => ({
+        id: rawSub.id,
+        userId: rawSub.userId,
+        amount: rawSub.amount,
+        status: rawSub.status,
+        purchasedAt: this.parseTimestamp(rawSub.purchased_at),
+        expiresAt: this.parseTimestamp(rawSub.expires_at)
+      }));
+    } catch (error) {
+      console.error("❌ RAW SQL getAllActiveSubscriptions error:", error);
+      throw error;
+    }
   }
 
   async hasActiveSubscription(userId: string): Promise<boolean> {
@@ -1666,16 +1696,38 @@ export class PostgresStorage implements IStorage {
 
   async getAllUnreadMessages(): Promise<Message[]> {
     try {
-      return await db.select().from(messages)
-        .where(
-          and(
-              eq(messages.isRead, false), // Use false for PostgreSQL compatibility
-            eq(messages.senderType, "user")
-          )
-        );
+      console.log(`🔥 RAW SQL getAllUnreadMessages`);
+      const result = await db.execute(sql`
+        SELECT id, session_id as "sessionId", sender_id as "senderId", 
+               sender_type as "senderType", content, is_read as "isRead", 
+               created_at 
+        FROM messages 
+        WHERE is_read = false AND sender_type = 'user'
+        ORDER BY created_at DESC
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let messagesData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        messagesData = result.rows;
+      } else if (Array.isArray(result)) {
+        messagesData = result;
+      }
+      
+      console.log(`✅ Found ${messagesData.length} unread messages`);
+      
+      return messagesData.map((rawMsg: any) => ({
+        id: rawMsg.id,
+        sessionId: rawMsg.sessionId,
+        senderId: rawMsg.senderId,
+        senderType: rawMsg.senderType,
+        content: rawMsg.content,
+        isRead: rawMsg.isRead,
+        createdAt: this.parseTimestamp(rawMsg.created_at)
+      }));
     } catch (error) {
-      console.error("Error getting unread messages (PostgreSQL/SQLite compatibility issue):", error);
-      // Return empty array for SQLite compatibility
+      console.error("❌ RAW SQL getAllUnreadMessages error:", error);
+      // Return empty array for compatibility
       return [];
     }
   }
@@ -1687,9 +1739,40 @@ export class PostgresStorage implements IStorage {
   }
 
   async getRecentMessages(limit: number = 50): Promise<Message[]> {
-    return await db.select().from(messages)
-      .orderBy(desc(messages.createdAt))
-      .limit(limit);
+    try {
+      console.log(`🔥 RAW SQL getRecentMessages (limit: ${limit})`);
+      const result = await db.execute(sql`
+        SELECT id, session_id as "sessionId", sender_id as "senderId", 
+               sender_type as "senderType", content, is_read as "isRead", 
+               created_at 
+        FROM messages 
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let messagesData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        messagesData = result.rows;
+      } else if (Array.isArray(result)) {
+        messagesData = result;
+      }
+      
+      console.log(`✅ Found ${messagesData.length} recent messages`);
+      
+      return messagesData.map((rawMsg: any) => ({
+        id: rawMsg.id,
+        sessionId: rawMsg.sessionId,
+        senderId: rawMsg.senderId,
+        senderType: rawMsg.senderType,
+        content: rawMsg.content,
+        isRead: rawMsg.isRead,
+        createdAt: this.parseTimestamp(rawMsg.created_at)
+      }));
+    } catch (error) {
+      console.error("❌ RAW SQL getRecentMessages error:", error);
+      throw error;
+    }
   }
 
   // Attachment methods
