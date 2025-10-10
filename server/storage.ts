@@ -1106,16 +1106,31 @@ export class PostgresStorage implements IStorage {
 
   // Message methods
   async createMessage(message: InsertMessage): Promise<Message> {
-    const result = await db.insert(messages).values(message).returning();
-    
-    // Update chat session lastActivity
-    if (message.sessionId) {
-      await db.update(chatSessions)
-        .set({ lastActivity: new Date() })
-        .where(eq(chatSessions.id, message.sessionId));
+    try {
+      console.log(`📝 Creating message for session ${message.sessionId}`);
+      
+      // Ensure message has proper timestamps
+      const messageWithTimestamp = {
+        ...message,
+        createdAt: new Date().toISOString()
+      };
+      
+      const result = await db.insert(messages).values(messageWithTimestamp).returning();
+      
+      // Update chat session lastActivity
+      if (message.sessionId) {
+        console.log(`🔄 Updating session ${message.sessionId} lastActivity`);
+        await db.update(chatSessions)
+          .set({ lastActivity: new Date().toISOString() })
+          .where(eq(chatSessions.id, message.sessionId));
+      }
+      
+      console.log(`✅ Message created successfully: ${result[0].id}`);
+      return result[0];
+    } catch (error) {
+      console.error(`❌ Error creating message:`, error);
+      throw error;
     }
-    
-    return result[0];
   }
 
   async getSessionMessages(sessionId: string): Promise<(Message & { attachments: Attachment[] })[]> {
