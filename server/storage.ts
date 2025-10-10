@@ -930,12 +930,22 @@ export class PostgresStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
-    const convertedUpdates = this.convertDates(updates);
-    const result = await db.update(users)
-      .set(convertedUpdates)
-      .where(eq(users.id, id))
-      .returning();
-    return result[0];
+    try {
+      console.log(`🔄 Updating user ${id} with:`, updates);
+      const convertedUpdates = this.convertDates(updates);
+      console.log(`🔄 Converted updates:`, convertedUpdates);
+      
+      const result = await db.update(users)
+        .set(convertedUpdates)
+        .where(eq(users.id, id))
+        .returning();
+      
+      console.log(`✅ User ${id} updated successfully`);
+      return result[0];
+    } catch (error) {
+      console.error(`❌ Error updating user ${id}:`, error);
+      throw error;
+    }
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -987,7 +997,7 @@ export class PostgresStorage implements IStorage {
       .orderBy(desc(subscriptions.purchasedAt));
     
     // Napraw daty w każdej subskrypcji
-    return subs.map(sub => this.fixSubscriptionDates(sub));
+    return subs.map((sub: any) => this.fixSubscriptionDates(sub));
   }
 
   async getAllActiveSubscriptions(): Promise<Subscription[]> {

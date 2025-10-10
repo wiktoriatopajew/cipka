@@ -1524,7 +1524,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sessionId } = req.params;
       const { content } = req.body;
       
+      console.log(`💬 User ${req.user.username} sending message to session ${sessionId}`);
+      
       if (!content) {
+        console.log(`❌ No content provided for message from ${req.user.username}`);
         return res.status(400).json({ error: "Content required" });
       }
 
@@ -1603,9 +1606,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('Failed to send email notification:', emailError);
       }
       
+      console.log(`✅ Message sent successfully by ${req.user.username} to session ${sessionId}`);
       res.json(message);
     } catch (error) {
-      res.status(500).json({ error: "Failed to send message" });
+      const { sessionId: errorSessionId } = req.params;
+      console.error(`❌ Failed to send message from ${req.user?.username} to session ${errorSessionId}:`, error);
+      res.status(500).json({ 
+        error: "Failed to send message",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -1921,18 +1930,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User heartbeat for online status (protected)
   app.post("/api/users/heartbeat", requireUserOnly, async (req, res) => {
     try {
+      console.log(`💓 Heartbeat from user ${req.user.username} (${req.user.id})`);
+      
       const updatedUser = await storage.updateUser(req.user.id, { 
         isOnline: true, 
         lastSeen: new Date()
       });
       
       if (!updatedUser) {
+        console.log(`❌ User not found during heartbeat update: ${req.user.id}`);
         return res.status(404).json({ error: "User not found" });
       }
       
+      console.log(`✅ Heartbeat successful for ${req.user.username}`);
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ error: "Failed to update heartbeat" });
+      console.error(`❌ Heartbeat error for user ${req.user.id}:`, error);
+      res.status(500).json({ 
+        error: "Failed to update heartbeat",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
