@@ -1937,13 +1937,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         now: now,
         type: typeof now,
         isDate: now instanceof Date,
+        constructor: now.constructor.name,
         toISOString: now.toISOString()
       });
       
-      const updatedUser = await storage.updateUser(req.user.id, { 
+      // Test the Date object before passing to updateUser
+      try {
+        const testISO = now.toISOString();
+        console.log(`✅ Date.toISOString() works: ${testISO}`);
+      } catch (dateError) {
+        console.error(`❌ Date.toISOString() failed:`, dateError);
+        throw new Error(`Invalid Date object in heartbeat: ${dateError}`);
+      }
+      
+      const updateData = { 
         isOnline: true, 
         lastSeen: now
+      };
+      
+      console.log(`📦 Preparing update data:`, {
+        updateData,
+        lastSeenType: typeof updateData.lastSeen,
+        lastSeenConstructor: updateData.lastSeen?.constructor?.name,
+        lastSeenIsDate: updateData.lastSeen instanceof Date
       });
+      
+      const updatedUser = await storage.updateUser(req.user.id, updateData);
       
       if (!updatedUser) {
         console.log(`❌ User not found during heartbeat update: ${req.user.id}`);
