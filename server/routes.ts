@@ -583,6 +583,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEBUG PASSWORD VERIFICATION ENDPOINT
+  app.post("/api/debug/verify", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      console.log("🔐 DEBUG PASSWORD VERIFICATION:", email);
+      
+      // Step 1: Get user by email
+      const user = await storage.getUserByEmail(email);
+      console.log("Step 1 - getUserByEmail result:", user ? { 
+        id: user.id, 
+        email: user.email, 
+        hasPassword: !!user.password,
+        passwordLength: user.password?.length 
+      } : null);
+      
+      if (!user) {
+        return res.json({
+          success: false,
+          step: "getUserByEmail",
+          result: "User not found"
+        });
+      }
+      
+      // Step 2: Verify password
+      const isValid = await require('bcryptjs').compare(password, user.password);
+      console.log("Step 2 - bcrypt.compare result:", isValid);
+      
+      // Step 3: Full verifyPassword test  
+      const verifyResult = await storage.verifyPassword(email, password);
+      console.log("Step 3 - verifyPassword result:", verifyResult ? "SUCCESS" : "FAILED");
+      
+      res.json({
+        success: true,
+        steps: {
+          getUserByEmail: !!user,
+          passwordHash: user.password?.substring(0, 20) + "...",
+          bcryptCompare: isValid,
+          verifyPassword: !!verifyResult
+        },
+        user: user ? {
+          id: user.id,
+          email: user.email,
+          isAdmin: user.isAdmin
+        } : null
+      });
+      
+    } catch (error) {
+      console.error("❌ Debug verify error:", error);
+      res.status(500).json({ error: "Debug verify failed", details: error.message });
+    }
+  });
+
   // Admin heartbeat endpoint to keep session alive and update online status
   app.post("/api/admin/heartbeat", async (req, res) => {
     if (!req.session?.isAdmin || !req.session?.adminId) {
