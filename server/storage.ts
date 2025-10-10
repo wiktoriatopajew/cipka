@@ -1716,7 +1716,7 @@ export class PostgresStorage implements IStorage {
       const result = await db.execute(sql`
         INSERT INTO attachments (
           id, message_id, file_name, original_name, file_size, 
-          mime_type, file_path, created_at, expires_at
+          mime_type, file_path, uploaded_at, expires_at
         ) VALUES (
           ${attachmentId}, ${attachment.messageId}, ${attachment.fileName}, 
           ${attachment.originalName}, ${attachment.fileSize}, ${attachment.mimeType}, 
