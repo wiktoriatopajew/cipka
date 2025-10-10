@@ -30,6 +30,22 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Debug endpoint for session status
+app.get('/api/session-debug', (req, res) => {
+  res.json({
+    hasSession: !!req.session,
+    sessionID: req.sessionID,
+    userId: req.session?.userId,
+    cookie: req.session?.cookie,
+    headers: {
+      'user-agent': req.get('user-agent'),
+      'cookie': req.get('cookie'),
+      'x-forwarded-for': req.get('x-forwarded-for'),
+      'x-real-ip': req.get('x-real-ip')
+    }
+  });
+});
+
 // Trust proxy for Render deployment
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -247,13 +263,25 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production', // HTTPS required in production
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict', // More permissive in production
   },
   name: 'chatwithmechanic.sid',
 }));
+
+// Debug session middleware
+app.use((req, res, next) => {
+  if (req.path.includes('/api/')) {
+    console.log(`🔐 Session check for ${req.method} ${req.path}:`, {
+      hasSession: !!req.session,
+      userId: req.session?.userId,
+      sessionID: req.sessionID
+    });
+  }
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
