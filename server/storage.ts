@@ -1342,19 +1342,105 @@ export class PostgresStorage implements IStorage {
 
   // Attachment methods
   async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-    
-    const result = await db.insert(attachments).values({
-      ...attachment,
-      expiresAt: expiresAt,
-    }).returning();
-    return result[0];
+    try {
+      console.log(`🔥 RAW SQL createAttachment for message ${attachment.messageId}`);
+      
+      const attachmentId = randomUUID();
+      const now = new Date().toISOString();
+      
+      // Calculate expires date (default 30 days from now)
+      let expiresAt: string;
+      if (attachment.expiresAt) {
+        expiresAt = attachment.expiresAt instanceof Date 
+          ? attachment.expiresAt.toISOString() 
+          : new Date(attachment.expiresAt).toISOString();
+      } else {
+        const expires = new Date();
+        expires.setDate(expires.getDate() + 30);
+        expiresAt = expires.toISOString();
+      }
+      
+      // RAW SQL insert
+      const result = await db.execute(sql`
+        INSERT INTO attachments (
+          id, message_id, file_name, original_name, file_size, 
+          mime_type, file_path, created_at, expires_at
+        ) VALUES (
+          ${attachmentId}, ${attachment.messageId}, ${attachment.fileName}, 
+          ${attachment.originalName}, ${attachment.fileSize}, ${attachment.mimeType}, 
+          ${attachment.filePath}, ${now}::timestamp, ${expiresAt}::timestamp
+        ) RETURNING *
+      `);
+      
+      // Handle different result structures
+      let createdAttachment: any;
+      if (result.rows && result.rows.length > 0) {
+        createdAttachment = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        createdAttachment = result[0];
+      } else {
+        throw new Error('No attachment returned from INSERT');
+      }
+      
+      console.log(`✅ RAW SQL createAttachment successful: ${attachmentId}`);
+      
+      return {
+        id: createdAttachment.id,
+        messageId: createdAttachment.message_id,
+        fileName: createdAttachment.file_name,
+        originalName: createdAttachment.original_name,
+        fileSize: createdAttachment.file_size,
+        mimeType: createdAttachment.mime_type,
+        filePath: createdAttachment.file_path,
+        createdAt: new Date(createdAttachment.created_at),
+        expiresAt: new Date(createdAttachment.expires_at)
+      };
+    } catch (error) {
+      console.error('❌ RAW SQL createAttachment error:', error);
+      throw error;
+    }
   }
 
   async getMessageAttachments(messageId: string): Promise<Attachment[]> {
-    return await db.select().from(attachments)
-      .where(eq(attachments.messageId, messageId));
+    try {
+      console.log(`🔥 RAW SQL getMessageAttachments for message ${messageId}`);
+      
+      const result = await db.execute(sql`
+        SELECT 
+          id, message_id as "messageId", file_name as "fileName", 
+          original_name as "originalName", file_size as "fileSize", 
+          mime_type as "mimeType", file_path as "filePath", 
+          created_at as "createdAt", expires_at as "expiresAt"
+        FROM attachments 
+        WHERE message_id = ${messageId}
+        ORDER BY created_at ASC
+      `);
+      
+      // Handle different result structures
+      let rows: any[] = [];
+      if (result.rows && Array.isArray(result.rows)) {
+        rows = result.rows;
+      } else if (Array.isArray(result)) {
+        rows = result;
+      }
+      
+      console.log(`✅ Found ${rows.length} attachments for message ${messageId}`);
+      
+      return rows.map((row: any) => ({
+        id: row.id,
+        messageId: row.messageId,
+        fileName: row.fileName,
+        originalName: row.originalName,
+        fileSize: row.fileSize,
+        mimeType: row.mimeType,
+        filePath: row.filePath,
+        createdAt: new Date(row.createdAt),
+        expiresAt: new Date(row.expiresAt)
+      }));
+    } catch (error) {
+      console.error('❌ RAW SQL getMessageAttachments error:', error);
+      return [];
+    }
   }
 
   async getAttachment(id: string): Promise<Attachment | undefined> {
