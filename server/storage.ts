@@ -806,16 +806,27 @@ export class PostgresStorage implements IStorage {
     if (adminEmail && adminPassword) {
       const existingAdmin = await this.getUserByEmail(adminEmail);
       if (!existingAdmin) {
-        const hashedPassword = await bcrypt.hash(adminPassword, 12);
-        await db.insert(users).values({
-          username: "admin",
-          password: hashedPassword,
-          email: adminEmail,
-          isAdmin: true,
-          hasSubscription: true,
-          isOnline: false,
-        });
-        console.log(`Admin user created with email: ${adminEmail}`);
+        try {
+          // RAW SQL operation to create admin user
+          const hashedPassword = await bcrypt.hash(adminPassword, 12);
+          const adminId = randomUUID();
+          const now = new Date().toISOString();
+          
+          await db.execute(sql`
+            INSERT INTO users (
+              id, username, password, email, is_admin, has_subscription, 
+              is_online, is_blocked, created_at, last_seen
+            ) VALUES (
+              ${adminId}, 'admin', ${hashedPassword}, ${adminEmail}, 
+              true, true, false, false, ${now}::timestamp, ${now}::timestamp
+            )
+          `);
+          console.log(`✅ Admin user created with RAW SQL - email: ${adminEmail}`);
+        } catch (error) {
+          console.error(`❌ Failed to create admin user:`, error);
+        }
+      } else {
+        console.log(`ℹ️ Admin user already exists: ${adminEmail}`);
       }
     }
 
