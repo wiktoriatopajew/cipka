@@ -1219,28 +1219,48 @@ export class PostgresStorage implements IStorage {
   // Message methods
   async createMessage(message: InsertMessage): Promise<Message> {
     try {
-      console.log(`📝 Creating message for session ${message.sessionId}`);
+      console.log(`� RAW SQL createMessage for session ${message.sessionId}`);
       
-      // Ensure message has proper timestamps using safe date conversion
-      const messageWithTimestamp = {
-        ...message,
-        createdAt: this.toISOString(new Date())
-      };
+      const messageId = randomUUID();
+      const now = new Date().toISOString();
       
-      const result = await db.insert(messages).values(messageWithTimestamp).returning();
+      // Use RAW SQL for message creation
+      const result = await db.execute(sql`
+        INSERT INTO messages (
+          id, session_id, sender_id, sender_type, content, is_read, created_at
+        ) VALUES (
+          ${messageId}, ${message.sessionId}, ${message.senderId}, 
+          ${message.senderType}, ${message.content}, ${message.isRead || false}, 
+          ${now}::timestamp
+        ) RETURNING *
+      `);
       
-      // Update chat session lastActivity
+      // Update chat session lastActivity with RAW SQL
       if (message.sessionId) {
-        console.log(`🔄 Updating session ${message.sessionId} lastActivity`);
-        await db.update(chatSessions)
-          .set({ lastActivity: this.toISOString(new Date()) })
-          .where(eq(chatSessions.id, message.sessionId));
+        console.log(`🔄 RAW SQL updating session ${message.sessionId} lastActivity`);
+        await db.execute(sql`
+          UPDATE chat_sessions 
+          SET last_activity = ${now}::timestamp 
+          WHERE id = ${message.sessionId}
+        `);
       }
       
-      console.log(`✅ Message created successfully: ${result[0].id}`);
-      return result[0];
+      // Handle PostgreSQL result structure
+      let createdMessage: any;
+      if (result.rows && result.rows.length > 0) {
+        createdMessage = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        createdMessage = result[0];
+      } else if (result[0]) {
+        createdMessage = result[0];
+      } else {
+        throw new Error('No message returned from INSERT');
+      }
+      
+      console.log(`✅ RAW SQL message created successfully: ${messageId}`);
+      return createdMessage as Message;
     } catch (error) {
-      console.error(`❌ Error creating message:`, error);
+      console.error(`❌ RAW SQL createMessage error:`, error);
       throw error;
     }
   }
