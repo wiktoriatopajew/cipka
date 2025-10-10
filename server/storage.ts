@@ -1145,27 +1145,48 @@ export class PostgresStorage implements IStorage {
   // Chat session methods
   async createChatSession(session: InsertChatSession): Promise<ChatSession> {
     try {
-      // Ustaw domyślne wartości explicite z bezpieczną konwersją dat
-      const now = new Date();
-      const sessionWithDefaults = {
-        ...session,
-        id: randomUUID(),
-        createdAt: this.toISOString(now),
-        lastActivity: this.toISOString(now),
-        status: session.status || "active"
-      };
+      console.log('🔥 RAW SQL createChatSession for user:', session.userId);
       
-      console.log('🔧 Creating PostgreSQL chat session:', sessionWithDefaults);
-      const result = await db.insert(chatSessions).values(sessionWithDefaults).returning();
+      const sessionId = randomUUID();
+      const now = new Date().toISOString(); // Direct ISO string
+      const vehicleInfoStr = typeof session.vehicleInfo === 'string' 
+        ? session.vehicleInfo 
+        : JSON.stringify(session.vehicleInfo);
       
-      if (result[0]) {
-        console.log('✅ Chat session created successfully:', result[0].id);
-        return result[0];
+      console.log('🚗 Creating chat session with RAW SQL:', {
+        sessionId,
+        userId: session.userId,
+        vehicleInfo: vehicleInfoStr,
+        status: session.status || 'active',
+        now
+      });
+      
+      // Use RAW SQL to avoid Drizzle ORM timestamp issues
+      const result = await db.execute(sql`
+        INSERT INTO chat_sessions (
+          id, user_id, vehicle_info, status, created_at, last_activity
+        ) VALUES (
+          ${sessionId}, ${session.userId}, ${vehicleInfoStr}, 
+          ${session.status || 'active'}, ${now}::timestamp, ${now}::timestamp
+        ) RETURNING *
+      `);
+      
+      // Handle PostgreSQL result structure
+      let createdSession: any;
+      if (result.rows && result.rows.length > 0) {
+        createdSession = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        createdSession = result[0];
+      } else if (result[0]) {
+        createdSession = result[0];
       } else {
-        throw new Error('No chat session returned from database');
+        throw new Error('No chat session returned from INSERT');
       }
+      
+      console.log('✅ RAW SQL chat session created:', sessionId);
+      return createdSession as ChatSession;
     } catch (error) {
-      console.error('❌ PostgreSQL error creating chat session:', error);
+      console.error('❌ RAW SQL createChatSession error:', error);
       throw error;
     }
   }
