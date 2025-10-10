@@ -693,8 +693,21 @@ export class PostgresStorage implements IStorage {
     if (typeof obj === 'object' && obj !== null) {
       const converted = { ...obj };
       for (const key in converted) {
-        if (converted[key] instanceof Date) {
-          converted[key] = converted[key].toISOString();
+        const value = converted[key];
+        if (value instanceof Date) {
+          converted[key] = value.toISOString();
+        } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+          // Already an ISO string, keep as is
+          converted[key] = value;
+        } else if (value && typeof value === 'object' && 'toISOString' in value) {
+          // Check if it looks like a Date object but might be malformed
+          try {
+            converted[key] = value.toISOString();
+          } catch (error) {
+            console.warn(`Failed to convert date field ${key}:`, value, error);
+            // Keep original value if conversion fails
+            converted[key] = value;
+          }
         }
       }
       return converted;
@@ -932,11 +945,21 @@ export class PostgresStorage implements IStorage {
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
     try {
       console.log(`🔄 Updating user ${id} with:`, updates);
-      const convertedUpdates = this.convertDates(updates);
-      console.log(`🔄 Converted updates:`, convertedUpdates);
+      
+      // Manually convert Date objects to ISO strings for safe database storage
+      const safeUpdates: any = { ...updates };
+      for (const key in safeUpdates) {
+        const value = safeUpdates[key];
+        if (value instanceof Date) {
+          safeUpdates[key] = value.toISOString();
+          console.log(`🔄 Converted ${key} from Date to ISO string: ${safeUpdates[key]}`);
+        }
+      }
+      
+      console.log(`🔄 Safe updates:`, safeUpdates);
       
       const result = await db.update(users)
-        .set(convertedUpdates)
+        .set(safeUpdates)
         .where(eq(users.id, id))
         .returning();
       
