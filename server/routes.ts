@@ -1320,16 +1320,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.createUser({ 
-  username,
-  email,
-  password,
-  referralCode // przekazujemy tylko jeśli istnieje
+        username,
+        email,
+        password,
+        referredBy: referrerId // przekazujemy ID polecającego bezpośrednio
       });
-
-      // Update user with referrer if code was valid
-      if (referrerId) {
-        await storage.updateUser(user.id, { referredBy: referrerId });
-      }
 
       // Generate referral code for new user
       await storage.generateReferralCode(user.id);

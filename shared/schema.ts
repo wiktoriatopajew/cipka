@@ -78,6 +78,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   email: true,
   referralCode: true,
+  referredBy: true,
 }).extend({
   password: z.string()
     .min(6, "Password must be at least 6 characters long"),
