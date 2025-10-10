@@ -228,7 +228,7 @@ if (process.env.NODE_ENV === 'production') {
           "https://analytics.google.com"
         ],
         objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
+        mediaSrc: ["'self'", "data:"],
         frameSrc: ["https://js.stripe.com", "https://hooks.stripe.com"],
         frameAncestors: ["'none'"]
       }
