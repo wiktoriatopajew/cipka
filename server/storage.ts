@@ -871,62 +871,28 @@ export class PostgresStorage implements IStorage {
 
   async createUser(user: typeof users.$inferInsert): Promise<User> {
     try {
-      console.log(`🔧 PostgreSQL createUser input:`, {
-        username: user.username,
-        email: user.email,
-        hasReferralCode: !!user.referralCode,
-        hasReferredBy: !!user.referredBy
-      });
+      console.log(`� FIXED PostgreSQL createUser using RAW SQL`);
       
       const hashedPassword = await bcrypt.hash(user.password, 12);
-      // Usuń pole 'id' z obiektu, aby pozwolić bazie ustawić domyślną wartość
-      const userCopy = { ...user };
-      // Generuj UUID dla nowego użytkownika
-      userCopy.id = randomUUID();
+      const userId = randomUUID();
+      const now = new Date().toISOString(); // Direct ISO string creation
       
-      // Ustaw wartości explicite - nie używaj spread operatora który może zawierać niewłaściwe typy
-      const now = new Date();
-      const nowISO = this.toISOString(now);
+      // Use RAW SQL to avoid Drizzle ORM type issues
+      const result = await db.execute(sql`
+        INSERT INTO users (
+          id, username, password, email, is_admin, has_subscription, 
+          is_online, is_blocked, referral_code, referred_by, created_at, last_seen
+        ) VALUES (
+          ${userId}, ${user.username}, ${hashedPassword}, ${user.email}, 
+          ${user.isAdmin ?? false}, ${user.hasSubscription ?? false},
+          ${user.isOnline ?? false}, ${user.isBlocked ?? false}, 
+          ${user.referralCode || null}, ${user.referredBy || null}, 
+          ${now}::timestamp, ${now}::timestamp
+        ) RETURNING *
+      `);
       
-      console.log(`📅 Generated timestamps for PostgreSQL:`, {
-        now: now,
-        nowISO: nowISO,
-        nowType: typeof now,
-        nowISOType: typeof nowISO
-      });
-      
-      const userInsertData = {
-        id: userCopy.id,
-        username: userCopy.username,
-        password: hashedPassword,
-        email: userCopy.email,
-        isAdmin: userCopy.isAdmin ?? false,
-        hasSubscription: userCopy.hasSubscription ?? false,
-        isOnline: userCopy.isOnline ?? false,
-        isBlocked: userCopy.isBlocked ?? false,
-        // Upewnij się że referral pola są null zamiast undefined lub pustych stringów
-        referralCode: userCopy.referralCode || null,
-        referredBy: userCopy.referredBy || null,
-        createdAt: nowISO,
-        lastSeen: nowISO,
-      };
-      
-      console.log(`📦 Final PostgreSQL insert data:`, userInsertData);
-      
-      // Debug każde pole przed wysłaniem do Drizzle
-      Object.entries(userInsertData).forEach(([key, value]) => {
-        console.log(`🔍 Field ${key}:`, {
-          value,
-          type: typeof value,
-          isDate: value ? (value as any) instanceof Date : false,
-          constructor: (value as any)?.constructor?.name
-        });
-      });
-      
-      const result = await db.insert(users).values(userInsertData).returning();
-      const createdUser = result[0];
-      // Napraw daty jeśli są nieprawidłowe
-      return this.normalizeUserDates(createdUser);
+      console.log(`✅ RAW SQL createUser successful for ${user.username}`);
+      return this.normalizeUserDates(result.rows[0] as User);
     } catch (error: any) {
       console.error('SQL error podczas tworzenia użytkownika:', error?.message || error);
       // Spróbuj utworzyć wszystkie wymagane tabele jeśli nie istnieją
