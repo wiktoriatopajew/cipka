@@ -690,6 +690,8 @@ export class PostgresStorage implements IStorage {
       const hashedPassword = await bcrypt.hash(user.password, 12);
       // Usuń pole 'id' z obiektu, aby pozwolić bazie ustawić domyślną wartość
       const userCopy = { ...user };
+      // Generuj UUID dla nowego użytkownika
+      userCopy.id = randomUUID();
       const result = await db.insert(users).values({
         ...userCopy,
         password: hashedPassword,
