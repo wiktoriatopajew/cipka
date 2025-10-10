@@ -1924,155 +1924,362 @@ export class PostgresStorage implements IStorage {
 
   // Referral methods implementation
   async generateReferralCode(userId: string): Promise<string> {
-    // Generate a unique 8-character code
-    const code = `REF${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    
-    // Update user with referral code
-    await db.update(users)
-      .set({ referralCode: code })
-      .where(eq(users.id, userId));
-    
-    return code;
+    try {
+      // Generate a unique 8-character code
+      const code = `REF${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      
+      console.log(`🔥 RAW SQL generateReferralCode: ${code} for user ${userId}`);
+      
+      // Update user with referral code using RAW SQL
+      await db.execute(sql`
+        UPDATE users 
+        SET referral_code = ${code} 
+        WHERE id = ${userId}
+      `);
+      
+      console.log(`✅ RAW SQL referral code ${code} assigned to user ${userId}`);
+      return code;
+    } catch (error) {
+      console.error('❌ RAW SQL generateReferralCode error:', error);
+      throw error;
+    }
   }
 
   async getUserByReferralCode(code: string): Promise<User | undefined> {
-    const result = await db.select()
-      .from(users)
-      .where(eq(users.referralCode, code))
-      .limit(1);
-    
-    return result[0];
+    try {
+      console.log(`🔥 RAW SQL getUserByReferralCode: ${code}`);
+      const result = await db.execute(sql`
+        SELECT id, username, email, is_admin as "isAdmin", 
+               has_subscription as "hasSubscription", is_online as "isOnline", 
+               is_blocked as "isBlocked", referral_code as "referralCode", 
+               referred_by as "referredBy", last_seen, created_at
+        FROM users 
+        WHERE referral_code = ${code}
+        LIMIT 1
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let userData = null;
+      if (result?.rows && Array.isArray(result.rows) && result.rows[0]) {
+        userData = result.rows[0];
+      } else if (Array.isArray(result) && result[0]) {
+        userData = result[0];
+      }
+      
+      if (!userData) {
+        console.log(`❌ No user found with referral code: ${code}`);
+        return undefined;
+      }
+      
+      console.log(`✅ Found user ${userData.username} with referral code ${code}`);
+      return {
+        id: userData.id,
+        username: userData.username,
+        password: '', // Hidden for security
+        email: userData.email,
+        isAdmin: userData.isAdmin,
+        hasSubscription: userData.hasSubscription,
+        isOnline: userData.isOnline,
+        isBlocked: userData.isBlocked,
+        referralCode: userData.referralCode,
+        referredBy: userData.referredBy,
+        lastSeen: this.parseTimestamp(userData.last_seen),
+        createdAt: this.parseTimestamp(userData.created_at)
+      };
+    } catch (error) {
+      console.error('❌ RAW SQL getUserByReferralCode error:', error);
+      throw error;
+    }
   }
 
   async createReferralReward(reward: InsertReferralReward): Promise<ReferralReward> {
-    const id = randomUUID();
-    const newReward = {
-      ...reward,
-      id,
-      createdAt: new Date(),
-    };
-    
-    await db.insert(referralRewards).values(newReward);
-    
-    const result = await db.select()
-      .from(referralRewards)
-      .where(eq(referralRewards.id, id))
-      .limit(1);
-    
-    return result[0];
+    try {
+      const id = randomUUID();
+      const now = new Date().toISOString();
+      
+      console.log(`🔥 RAW SQL createReferralReward: ${id} for referrer ${reward.referrerId}`);
+      
+      // Insert using RAW SQL
+      const result = await db.execute(sql`
+        INSERT INTO referral_rewards (
+          id, referrer_id, referred_id, reward_type, reward_value, 
+          status, required_referrals, current_referrals, reward_cycle, created_at
+        ) VALUES (
+          ${id}, ${reward.referrerId}, ${reward.referredId}, ${reward.rewardType}, 
+          ${reward.rewardValue}, ${reward.status || 'pending'}, 
+          ${reward.requiredReferrals || 3}, ${reward.currentReferrals || 0}, 
+          ${reward.rewardCycle || 1}, ${now}::timestamp
+        ) RETURNING *
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let createdReward: any;
+      if (result?.rows && result.rows.length > 0) {
+        createdReward = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        createdReward = result[0];
+      } else {
+        throw new Error('No referral reward returned from INSERT');
+      }
+      
+      console.log(`✅ RAW SQL referral reward created: ${id}`);
+      
+      return {
+        id: createdReward.id,
+        referrerId: createdReward.referrer_id,
+        referredId: createdReward.referred_id,
+        rewardType: createdReward.reward_type,
+        rewardValue: createdReward.reward_value,
+        status: createdReward.status,
+        requiredReferrals: createdReward.required_referrals,
+        currentReferrals: createdReward.current_referrals,
+        rewardCycle: createdReward.reward_cycle,
+        createdAt: this.parseTimestamp(createdReward.created_at),
+        awardedAt: createdReward.awarded_at ? this.parseTimestamp(createdReward.awarded_at) : null
+      };
+    } catch (error) {
+      console.error('❌ RAW SQL createReferralReward error:', error);
+      throw error;
+    }
   }
 
   async getUserReferrals(userId: string): Promise<User[]> {
-    const result = await db.select()
-      .from(users)
-      .where(eq(users.referredBy, userId));
-    
-    return result;
+    try {
+      console.log(`🔥 RAW SQL getUserReferrals for user: ${userId}`);
+      const result = await db.execute(sql`
+        SELECT id, username, email, is_admin as "isAdmin", 
+               has_subscription as "hasSubscription", is_online as "isOnline", 
+               is_blocked as "isBlocked", referral_code as "referralCode", 
+               referred_by as "referredBy", last_seen, created_at
+        FROM users 
+        WHERE referred_by = ${userId}
+        ORDER BY created_at ASC
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let usersData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        usersData = result.rows;
+      } else if (Array.isArray(result)) {
+        usersData = result;
+      }
+      
+      console.log(`✅ Found ${usersData.length} referrals for user ${userId}`);
+      
+      return usersData.map((rawUser: any) => ({
+        id: rawUser.id,
+        username: rawUser.username,
+        password: '', // Hidden for security
+        email: rawUser.email,
+        isAdmin: rawUser.isAdmin,
+        hasSubscription: rawUser.hasSubscription,
+        isOnline: rawUser.isOnline,
+        isBlocked: rawUser.isBlocked,
+        referralCode: rawUser.referralCode,
+        referredBy: rawUser.referredBy,
+        lastSeen: this.parseTimestamp(rawUser.last_seen),
+        createdAt: this.parseTimestamp(rawUser.created_at)
+      }));
+    } catch (error) {
+      console.error('❌ RAW SQL getUserReferrals error:', error);
+      throw error;
+    }
   }
 
   async getUserReferralRewards(userId: string): Promise<ReferralReward[]> {
-    const result = await db.select()
-      .from(referralRewards)
-      .where(eq(referralRewards.referrerId, userId));
-    
-    return result;
+    try {
+      console.log(`🔥 RAW SQL getUserReferralRewards for user: ${userId}`);
+      const result = await db.execute(sql`
+        SELECT id, referrer_id as "referrerId", referred_id as "referredId", 
+               reward_type as "rewardType", reward_value as "rewardValue", 
+               status, required_referrals as "requiredReferrals", 
+               current_referrals as "currentReferrals", reward_cycle as "rewardCycle", 
+               created_at, awarded_at
+        FROM referral_rewards 
+        WHERE referrer_id = ${userId}
+        ORDER BY created_at DESC
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let rewardsData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        rewardsData = result.rows;
+      } else if (Array.isArray(result)) {
+        rewardsData = result;
+      }
+      
+      console.log(`✅ Found ${rewardsData.length} referral rewards for user ${userId}`);
+      
+      return rewardsData.map((rawReward: any) => ({
+        id: rawReward.id,
+        referrerId: rawReward.referrerId,
+        referredId: rawReward.referredId,
+        rewardType: rawReward.rewardType,
+        rewardValue: rawReward.rewardValue,
+        status: rawReward.status,
+        requiredReferrals: rawReward.requiredReferrals,
+        currentReferrals: rawReward.currentReferrals,
+        rewardCycle: rawReward.rewardCycle,
+        createdAt: this.parseTimestamp(rawReward.created_at),
+        awardedAt: rawReward.awarded_at ? this.parseTimestamp(rawReward.awarded_at) : null
+      }));
+    } catch (error) {
+      console.error('❌ RAW SQL getUserReferralRewards error:', error);
+      throw error;
+    }
   }
 
   async updateReferralProgress(referrerId: string, newReferralId: string): Promise<void> {
-    // Get current referral count
-    const referrals = await this.getUserReferrals(referrerId);
-    const currentCount = referrals.length;
-    
-    // Get current active reward cycle (pending or active)
-    const existingReward = await db.select()
-      .from(referralRewards)
-      .where(and(
-        eq(referralRewards.referrerId, referrerId),
-        eq(referralRewards.status, "pending")
-      ))
-      .orderBy(desc(referralRewards.rewardCycle))
-      .limit(1);
-    
-    if (existingReward.length > 0) {
-      // Update existing pending reward with new referral count
-      const newCurrentReferrals = (existingReward[0].currentReferrals || 0) + 1;
+    try {
+      console.log(`🔥 RAW SQL updateReferralProgress: referrer=${referrerId}, newReferral=${newReferralId}`);
       
-      await db.update(referralRewards)
-        .set({ currentReferrals: newCurrentReferrals })
-        .where(eq(referralRewards.id, existingReward[0].id));
+      // Get current active reward cycle (pending or active) using RAW SQL
+      const result = await db.execute(sql`
+        SELECT id, current_referrals, reward_cycle
+        FROM referral_rewards 
+        WHERE referrer_id = ${referrerId} AND status = 'pending'
+        ORDER BY reward_cycle DESC
+        LIMIT 1
+      `);
       
-      // If reached 3 referrals, award the bonus
-      if (newCurrentReferrals >= 3) {
-        await this.awardReferralReward(existingReward[0].id);
+      // 🛡️ DEFENSIVE MAPPING
+      let existingReward = null;
+      if (result?.rows && Array.isArray(result.rows) && result.rows[0]) {
+        existingReward = result.rows[0];
+      } else if (Array.isArray(result) && result[0]) {
+        existingReward = result[0];
       }
-    } else {
-      // Create new referral reward tracker for first cycle
-      await this.createReferralReward({
-        referrerId,
-        referredId: newReferralId,
-        rewardType: "free_month",
-        rewardValue: 30,
-        currentReferrals: 1,
-        requiredReferrals: 3,
-        rewardCycle: 1,
-        status: "pending"
-      });
+      
+      if (existingReward) {
+        // Update existing pending reward with new referral count
+        const newCurrentReferrals = (existingReward.current_referrals || 0) + 1;
+        
+        console.log(`📈 Updating reward ${existingReward.id}: ${existingReward.current_referrals} -> ${newCurrentReferrals}`);
+        
+        await db.execute(sql`
+          UPDATE referral_rewards 
+          SET current_referrals = ${newCurrentReferrals}
+          WHERE id = ${existingReward.id}
+        `);
+        
+        // If reached 3 referrals, award the bonus
+        if (newCurrentReferrals >= 3) {
+          console.log(`🎉 Awarding referral reward ${existingReward.id} (reached ${newCurrentReferrals} referrals)`);
+          await this.awardReferralReward(existingReward.id);
+        }
+      } else {
+        // Create new referral reward tracker for first cycle
+        console.log(`🆕 Creating first referral reward cycle for referrer ${referrerId}`);
+        await this.createReferralReward({
+          referrerId,
+          referredId: newReferralId,
+          rewardType: "free_month",
+          rewardValue: 30,
+          currentReferrals: 1,
+          requiredReferrals: 3,
+          rewardCycle: 1,
+          status: "pending"
+        });
+      }
+      
+      console.log(`✅ RAW SQL updateReferralProgress completed`);
+    } catch (error) {
+      console.error('❌ RAW SQL updateReferralProgress error:', error);
+      throw error;
     }
   }
 
   async awardReferralReward(rewardId: string): Promise<void> {
-    // Mark reward as awarded
-    await db.update(referralRewards)
-      .set({ 
-        status: "awarded",
-        awardedAt: new Date()
-      })
-      .where(eq(referralRewards.id, rewardId));
-    
-    // Get the reward details
-    const reward = await db.select()
-      .from(referralRewards)
-      .where(eq(referralRewards.id, rewardId))
-      .limit(1);
-    
-    if (reward.length > 0 && reward[0].referrerId) {
-      // Check if user already has an active subscription
-      const existingSubscription = await db.select()
-        .from(subscriptions)
-        .where(and(
-          eq(subscriptions.userId, reward[0].referrerId),
-          eq(subscriptions.status, "active")
-        ))
-        .orderBy(desc(subscriptions.expiresAt))
-        .limit(1);
-
-      if (existingSubscription.length > 0) {
-        // User has active subscription - extend it by adding reward days
-        const currentExpiryDate = new Date(existingSubscription[0].expiresAt || new Date());
-        const newExpiryDate = new Date(currentExpiryDate);
-        newExpiryDate.setDate(newExpiryDate.getDate() + reward[0].rewardValue);
-        
-        // Update existing subscription expiry date
-        await db.update(subscriptions)
-          .set({ expiresAt: newExpiryDate })
-          .where(eq(subscriptions.id, existingSubscription[0].id));
-      } else {
-        // User has no active subscription - create new one
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + reward[0].rewardValue);
-        
-        await db.insert(subscriptions).values({
-          userId: reward[0].referrerId,
-          amount: 0, // Free subscription
-          status: "active",
-          expiresAt: expiresAt
-        });
+    try {
+      console.log(`🔥 RAW SQL awardReferralReward: ${rewardId}`);
+      const now = new Date().toISOString();
+      
+      // Mark reward as awarded using RAW SQL
+      await db.execute(sql`
+        UPDATE referral_rewards 
+        SET status = 'awarded', awarded_at = ${now}::timestamp
+        WHERE id = ${rewardId}
+      `);
+      
+      // Get the reward details using RAW SQL
+      const rewardResult = await db.execute(sql`
+        SELECT referrer_id, reward_value
+        FROM referral_rewards 
+        WHERE id = ${rewardId}
+        LIMIT 1
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING
+      let rewardData = null;
+      if (rewardResult?.rows && Array.isArray(rewardResult.rows) && rewardResult.rows[0]) {
+        rewardData = rewardResult.rows[0];
+      } else if (Array.isArray(rewardResult) && rewardResult[0]) {
+        rewardData = rewardResult[0];
       }
       
-      // Update user subscription status
-      await db.update(users)
-        .set({ hasSubscription: true })
-        .where(eq(users.id, reward[0].referrerId));
+      if (rewardData && rewardData.referrer_id) {
+        const referrerId = rewardData.referrer_id;
+        const rewardValue = rewardData.reward_value;
+        
+        console.log(`🎁 Processing reward for user ${referrerId}: ${rewardValue} days`);
+        
+        // Check if user already has an active subscription using RAW SQL
+        const subResult = await db.execute(sql`
+          SELECT id, expires_at
+          FROM subscriptions 
+          WHERE user_id = ${referrerId} AND status = 'active'
+          ORDER BY expires_at DESC
+          LIMIT 1
+        `);
+        
+        // 🛡️ DEFENSIVE MAPPING
+        let existingSubscription = null;
+        if (subResult?.rows && Array.isArray(subResult.rows) && subResult.rows[0]) {
+          existingSubscription = subResult.rows[0];
+        } else if (Array.isArray(subResult) && subResult[0]) {
+          existingSubscription = subResult[0];
+        }
+
+        if (existingSubscription) {
+          // User has active subscription - extend it by adding reward days
+          const currentExpiryDate = new Date(existingSubscription.expires_at || new Date());
+          const newExpiryDate = new Date(currentExpiryDate);
+          newExpiryDate.setDate(newExpiryDate.getDate() + rewardValue);
+          
+          console.log(`📅 Extending subscription ${existingSubscription.id}: ${currentExpiryDate.toISOString()} -> ${newExpiryDate.toISOString()}`);
+          
+          // Update existing subscription expiry date using RAW SQL
+          await db.execute(sql`
+            UPDATE subscriptions 
+            SET expires_at = ${newExpiryDate.toISOString()}::timestamp
+            WHERE id = ${existingSubscription.id}
+          `);
+        } else {
+          // User has no active subscription - create new one
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + rewardValue);
+          const subId = randomUUID();
+          
+          console.log(`🆕 Creating new referral subscription for user ${referrerId}, expires: ${expiresAt.toISOString()}`);
+          
+          await db.execute(sql`
+            INSERT INTO subscriptions (id, user_id, amount, status, purchased_at, expires_at)
+            VALUES (${subId}, ${referrerId}, 0, 'active', ${now}::timestamp, ${expiresAt.toISOString()}::timestamp)
+          `);
+        }
+        
+        // Update user subscription status using RAW SQL
+        await db.execute(sql`
+          UPDATE users 
+          SET has_subscription = true
+          WHERE id = ${referrerId}
+        `);
+        
+        console.log(`✅ RAW SQL awardReferralReward completed for user ${referrerId}`);
+      }
+    } catch (error) {
+      console.error('❌ RAW SQL awardReferralReward error:', error);
+      throw error;
     }
   }
 
@@ -2158,34 +2365,52 @@ export class PostgresStorage implements IStorage {
 
   async resetReferralCycle(userId: string): Promise<{ success: boolean; message: string; newCycle: number }> {
     try {
-      // Get user's current rewards to find the latest cycle
-      const rewards = await db.select()
-        .from(referralRewards)
-        .where(eq(referralRewards.referrerId, userId))
-        .orderBy(desc(referralRewards.rewardCycle));
-
-      const latestCycle = rewards.length > 0 ? (rewards[0].rewardCycle || 1) : 1;
+      console.log(`🔥 RAW SQL resetReferralCycle for user: ${userId}`);
+      
+      // Get user's current rewards to find the latest cycle using RAW SQL
+      const result = await db.execute(sql`
+        SELECT reward_cycle
+        FROM referral_rewards 
+        WHERE referrer_id = ${userId}
+        ORDER BY reward_cycle DESC
+        LIMIT 1
+      `);
+      
+      // 🛡️ DEFENSIVE MAPPING
+      let latestCycle = 1;
+      if (result?.rows && Array.isArray(result.rows) && result.rows[0]) {
+        latestCycle = result.rows[0].reward_cycle || 1;
+      } else if (Array.isArray(result) && result[0]) {
+        latestCycle = result[0].reward_cycle || 1;
+      }
+      
       const newCycle = latestCycle + 1;
+      
+      console.log(`🔄 Creating new referral cycle ${newCycle} for user ${userId}`);
 
-      // Create a new referral reward tracker for the next cycle
-      await db.insert(referralRewards).values({
-        referrerId: userId,
-        referredId: null,
-        rewardType: "free_month",
-        rewardValue: 30,
-        currentReferrals: 0,
-        requiredReferrals: 3,
-        rewardCycle: newCycle,
-        status: "pending"
-      });
+      // Create a new referral reward tracker for the next cycle using RAW SQL
+      const rewardId = randomUUID();
+      const now = new Date().toISOString();
+      
+      await db.execute(sql`
+        INSERT INTO referral_rewards (
+          id, referrer_id, referred_id, reward_type, reward_value,
+          current_referrals, required_referrals, reward_cycle, status, created_at
+        ) VALUES (
+          ${rewardId}, ${userId}, null, 'free_month', 30,
+          0, 3, ${newCycle}, 'pending', ${now}::timestamp
+        )
+      `);
 
+      console.log(`✅ RAW SQL resetReferralCycle completed - cycle ${newCycle}`);
+      
       return {
         success: true,
         message: `Started new referral cycle ${newCycle}. Refer 3 more people to get another 30 days!`,
         newCycle: newCycle
       };
     } catch (error) {
-      console.error('Reset referral cycle error:', error);
+      console.error('❌ RAW SQL resetReferralCycle error:', error);
       return {
         success: false,
         message: "Failed to reset referral cycle",
