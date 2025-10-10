@@ -795,7 +795,8 @@ export class PostgresStorage implements IStorage {
       // Generuj UUID dla nowego użytkownika
       userCopy.id = randomUUID();
       
-      // Ustaw domyślne wartości, jeśli nie są podane (daty pozostaw bazie)
+      // Ustaw domyślne wartości explicite (nie polegaj na defaultNow() z bazy)
+      const now = new Date();
       const result = await db.insert(users).values({
         ...userCopy,
         password: hashedPassword,
@@ -803,7 +804,8 @@ export class PostgresStorage implements IStorage {
         hasSubscription: userCopy.hasSubscription ?? false,
         isOnline: userCopy.isOnline ?? false,
         isBlocked: userCopy.isBlocked ?? false,
-        // createdAt i lastSeen - pozwól bazie ustawić defaultNow()
+        createdAt: userCopy.createdAt ?? now,
+        lastSeen: userCopy.lastSeen ?? now,
       }).returning();
       const createdUser = result[0];
       // Napraw daty jeśli są nieprawidłowe
@@ -900,13 +902,15 @@ export class PostgresStorage implements IStorage {
   const subCopy: any = { ...subscription };
   subCopy.id = randomUUID();
   
-  // Ustaw domyślne wartości tylko dla expiresAt (purchasedAt zostaw bazie)
+  // Ustaw domyślne wartości explicite (nie polegaj na defaultNow() z bazy)
+  const now = new Date();
+  if (!subCopy.purchasedAt) {
+    subCopy.purchasedAt = now;
+  }
   if (!subCopy.expiresAt) {
-    // Jeśli brak daty, ustaw na 30 dni od teraz
-    const now = new Date();
+    // Jeśli brak daty, ustaw na 30 dni od teraz  
     subCopy.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   }
-  // purchasedAt zostaw bazie - użyje defaultNow()
     try {
       const result = await db.insert(subscriptions).values(subCopy).returning();
       // Update user hasSubscription flag
