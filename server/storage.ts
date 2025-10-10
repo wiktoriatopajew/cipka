@@ -890,8 +890,16 @@ export class PostgresStorage implements IStorage {
         LIMIT 1
       `);
       
-      if (result.rows[0]) {
-        const rawUser = result.rows[0] as any;
+      // Handle different PostgreSQL response structures
+      let userData = null;
+      if (result?.rows && result.rows.length > 0) {
+        userData = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        userData = result[0];
+      }
+      
+      if (userData) {
+        const rawUser = userData as any;
         console.log(`🔍 Raw PostgreSQL user for ${id}:`, {
           lastSeenRaw: rawUser.last_seen,
           lastSeenType: typeof rawUser.last_seen,
@@ -939,8 +947,16 @@ export class PostgresStorage implements IStorage {
         LIMIT 1
       `);
       
-      if (result.rows[0]) {
-        const rawUser = result.rows[0] as any;
+      // Handle different PostgreSQL response structures
+      let userData = null;
+      if (result?.rows && result.rows.length > 0) {
+        userData = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        userData = result[0];
+      }
+      
+      if (userData) {
+        const rawUser = userData as any;
         return {
           id: rawUser.id,
           username: rawUser.username,
@@ -975,8 +991,24 @@ export class PostgresStorage implements IStorage {
         LIMIT 1
       `);
       
-      if (result.rows[0]) {
-        const rawUser = result.rows[0] as any;
+      console.log(`🔍 PostgreSQL result structure:`, {
+        result: typeof result,
+        hasRows: !!result?.rows,
+        rowsLength: result?.rows?.length,
+        isArray: Array.isArray(result),
+        resultLength: Array.isArray(result) ? result.length : 'not array'
+      });
+      
+      // Handle different PostgreSQL response structures
+      let userData = null;
+      if (result?.rows && result.rows.length > 0) {
+        userData = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        userData = result[0];
+      }
+      
+      if (userData) {
+        const rawUser = userData as any;
         console.log(`✅ RAW SQL: Found user "${email}" - isAdmin: ${rawUser.isAdmin}`);
         return {
           id: rawUser.id,
@@ -1188,7 +1220,22 @@ export class PostgresStorage implements IStorage {
         ORDER BY created_at DESC
       `);
       
-      return result.rows.map((rawUser: any) => ({
+      console.log(`🔍 getAllUsers PostgreSQL result:`, {
+        result: typeof result,
+        hasRows: !!result?.rows,
+        rowsLength: result?.rows?.length,
+        isArray: Array.isArray(result)
+      });
+      
+      // Handle different PostgreSQL response structures
+      let usersData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        usersData = result.rows;
+      } else if (Array.isArray(result)) {
+        usersData = result;
+      }
+      
+      return usersData.map((rawUser: any) => ({
         id: rawUser.id,
         username: rawUser.username,
         email: rawUser.email,
@@ -1269,12 +1316,35 @@ export class PostgresStorage implements IStorage {
   }
 
   async getUserSubscriptions(userId: string): Promise<Subscription[]> {
-    const subs = await db.select().from(subscriptions)
-      .where(eq(subscriptions.userId, userId))
-      .orderBy(desc(subscriptions.purchasedAt));
-    
-    // Znormalizuj daty w każdej subskrypcji z PostgreSQL
-    return subs.map((sub: any) => this.normalizeSubscriptionDates(sub));
+    try {
+      console.log(`🔥 RAW SQL getUserSubscriptions for: ${userId}`);
+      const result = await db.execute(sql`
+        SELECT id, user_id as "userId", amount, status, purchased_at, expires_at
+        FROM subscriptions 
+        WHERE user_id = ${userId} 
+        ORDER BY purchased_at DESC
+      `);
+      
+      // Handle different PostgreSQL response structures
+      let subsData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        subsData = result.rows;
+      } else if (Array.isArray(result)) {
+        subsData = result;
+      }
+      
+      return subsData.map((sub: any) => ({
+        id: sub.id,
+        userId: sub.userId,
+        amount: sub.amount,
+        status: sub.status,
+        purchasedAt: this.parseTimestamp(sub.purchased_at),
+        expiresAt: this.parseTimestamp(sub.expires_at)
+      }));
+    } catch (error) {
+      console.error("❌ RAW SQL getUserSubscriptions error:", error);
+      throw error;
+    }
   }
 
   async getAllActiveSubscriptions(): Promise<Subscription[]> {
@@ -1432,11 +1502,59 @@ export class PostgresStorage implements IStorage {
   }
 
   async updateChatSession(id: string, updates: Partial<ChatSession>): Promise<ChatSession | undefined> {
-    const result = await db.update(chatSessions)
-      .set(updates)
-      .where(eq(chatSessions.id, id))
-      .returning();
-    return result[0];
+    try {
+      console.log(`🔥 RAW SQL updateChatSession: ${id}`, updates);
+      
+      // Build dynamic SET clause for PostgreSQL
+      const setParts: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 2; // Start from $2 since $1 is the id
+      
+      Object.entries(updates).forEach(([key, value]) => {
+        let dbColumnName = key;
+        switch (key) {
+          case 'userId': dbColumnName = 'user_id'; break;
+          case 'vehicleInfo': dbColumnName = 'vehicle_info'; break;
+          case 'lastActivity': dbColumnName = 'last_activity'; break;
+        }
+        setParts.push(`${dbColumnName} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      });
+      
+      if (setParts.length === 0) {
+        return await this.getChatSession(id);
+      }
+      
+      const updateQuery = `UPDATE chat_sessions SET ${setParts.join(', ')} WHERE id = $1 RETURNING id, user_id as "userId", vehicle_info as "vehicleInfo", status, created_at, last_activity`;
+      
+      const result = await db.execute(sql.raw(updateQuery, [id, ...values]));
+      
+      // Handle different response structures
+      let sessionData = null;
+      if (result?.rows && result.rows.length > 0) {
+        sessionData = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        sessionData = result[0];
+      }
+      
+      if (sessionData) {
+        const rawSession = sessionData as any;
+        return {
+          id: rawSession.id,
+          userId: rawSession.userId,
+          vehicleInfo: rawSession.vehicleInfo,
+          status: rawSession.status,
+          createdAt: this.parseTimestamp(rawSession.created_at),
+          lastActivity: this.parseTimestamp(rawSession.last_activity)
+        };
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error("❌ RAW SQL updateChatSession error:", error);
+      throw error;
+    }
   }
 
   // Message methods
@@ -1489,22 +1607,49 @@ export class PostgresStorage implements IStorage {
   }
 
   async getSessionMessages(sessionId: string): Promise<(Message & { attachments: Attachment[] })[]> {
-    const messagesData = await db.select().from(messages)
-      .where(eq(messages.sessionId, sessionId))
-      .orderBy(messages.createdAt);
-    
-    // Get attachments for each message
-    const messagesWithAttachments = await Promise.all(
-  messagesData.map(async (message: Message) => {
-        const messageAttachments = await this.getMessageAttachments(message.id);
-        return {
-          ...message,
-          attachments: messageAttachments
-        };
-      })
-    );
-    
-    return messagesWithAttachments;
+    try {
+      console.log(`🔥 RAW SQL getSessionMessages for session: ${sessionId}`);
+      const result = await db.execute(sql`
+        SELECT id, session_id as "sessionId", sender_id as "senderId", 
+               sender_type as "senderType", content, created_at 
+        FROM messages 
+        WHERE session_id = ${sessionId} 
+        ORDER BY created_at ASC
+      `);
+      
+      // Handle different response structures
+      let messagesData = [];
+      if (result?.rows && Array.isArray(result.rows)) {
+        messagesData = result.rows;
+      } else if (Array.isArray(result)) {
+        messagesData = result;
+      }
+      
+      // Get attachments for each message
+      const messagesWithAttachments = await Promise.all(
+        messagesData.map(async (rawMessage: any) => {
+          const message = {
+            id: rawMessage.id,
+            sessionId: rawMessage.sessionId,
+            senderId: rawMessage.senderId,
+            senderType: rawMessage.senderType,
+            content: rawMessage.content,
+            createdAt: this.parseTimestamp(rawMessage.created_at)
+          };
+          
+          const messageAttachments = await this.getMessageAttachments(message.id);
+          return {
+            ...message,
+            attachments: messageAttachments
+          };
+        })
+      );
+      
+      return messagesWithAttachments;
+    } catch (error) {
+      console.error("❌ RAW SQL getSessionMessages error:", error);
+      throw error;
+    }
   }
 
   async getAllUnreadMessages(): Promise<Message[]> {
