@@ -786,18 +786,21 @@ export class PostgresStorage implements IStorage {
 
   // Subscription methods
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
-  const subCopy = { ...subscription };
-  subCopy.id = randomUUID();
-  const result = await db.insert(subscriptions).values(subCopy).returning();
-    
-    // Update user hasSubscription flag
-    if (subscription.userId) {
-      await db.update(users)
-        .set({ hasSubscription: true })
-        .where(eq(users.id, subscription.userId));
+    const subCopy = { ...subscription };
+    subCopy.id = randomUUID();
+    try {
+      const result = await db.insert(subscriptions).values(subCopy).returning();
+      // Update user hasSubscription flag
+      if (subscription.userId) {
+        await db.update(users)
+          .set({ hasSubscription: true })
+          .where(eq(users.id, subscription.userId));
+      }
+      return result[0];
+    } catch (error) {
+      console.error('SQL error podczas dodawania subskrypcji:', error, error?.stack);
+      throw error;
     }
-    
-    return result[0];
   }
 
   async getUserSubscriptions(userId: string): Promise<Subscription[]> {

@@ -1335,7 +1335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(subscription);
     } catch (error: any) {
-      console.error("Payment verification error:", error);
+  console.error("Payment verification error:", error, error?.stack);
       res.status(500).json({ error: "Failed to verify payment and create subscription" });
     }
   });
