@@ -1932,9 +1932,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`💓 Heartbeat from user ${req.user.username} (${req.user.id})`);
       
+      const now = new Date();
+      console.log(`🕐 Creating heartbeat timestamp:`, {
+        now: now,
+        type: typeof now,
+        isDate: now instanceof Date,
+        toISOString: now.toISOString()
+      });
+      
       const updatedUser = await storage.updateUser(req.user.id, { 
         isOnline: true, 
-        lastSeen: new Date()
+        lastSeen: now
       });
       
       if (!updatedUser) {

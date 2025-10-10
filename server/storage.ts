@@ -950,9 +950,26 @@ export class PostgresStorage implements IStorage {
       const safeUpdates: any = { ...updates };
       for (const key in safeUpdates) {
         const value = safeUpdates[key];
+        console.log(`🔍 Processing field ${key}:`, {
+          value: value,
+          type: typeof value,
+          isDate: value instanceof Date,
+          constructor: value?.constructor?.name,
+          hasToISOString: typeof value?.toISOString === 'function'
+        });
+        
         if (value instanceof Date) {
           safeUpdates[key] = value.toISOString();
           console.log(`🔄 Converted ${key} from Date to ISO string: ${safeUpdates[key]}`);
+        } else if (value && typeof value === 'object' && typeof value.toISOString === 'function') {
+          // Some objects that look like Date but aren't Date instances
+          try {
+            safeUpdates[key] = value.toISOString();
+            console.log(`🔄 Converted ${key} from Date-like object to ISO string: ${safeUpdates[key]}`);
+          } catch (err) {
+            console.error(`❌ Failed to convert ${key}:`, err);
+            throw new Error(`Cannot convert field ${key} to ISO string: ${err instanceof Error ? err.message : String(err)}`);
+          }
         }
       }
       
