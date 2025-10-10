@@ -996,14 +996,32 @@ export class PostgresStorage implements IStorage {
   }
 
   async hasActiveSubscription(userId: string): Promise<boolean> {
-    const userSubscriptions = await db.select().from(subscriptions)
-      .where(eq(subscriptions.userId, userId))
-      .orderBy(desc(subscriptions.purchasedAt));
+    const userSubscriptions = await this.getUserSubscriptions(userId); // Use getUserSubscriptions which applies fixSubscriptionDates
     
     const now = new Date();
-    return userSubscriptions.some((sub: Subscription) => 
-      sub.expiresAt && new Date(sub.expiresAt) > now
-    );
+    const hasActive = userSubscriptions.some((sub: Subscription) => {
+      if (sub.status !== "active") return false;
+      if (!sub.expiresAt) return false;
+      
+      // Napraw datę jeśli jest string
+      let expiresDate = sub.expiresAt;
+      if (typeof expiresDate === 'string') {
+        expiresDate = new Date(expiresDate);
+      }
+      
+      // Sprawdź czy data jest prawidłowa
+      if (!(expiresDate instanceof Date) || isNaN(expiresDate.getTime())) {
+        console.log(`❌ Invalid expiresAt date in hasActiveSubscription for subscription ${sub.id}:`, sub.expiresAt);
+        return false;
+      }
+      
+      const isActive = expiresDate > now;
+      console.log(`📅 hasActiveSubscription check for ${userId}: subscription ${sub.id} expires ${expiresDate.toISOString()}, now ${now.toISOString()}, active: ${isActive}`);
+      return isActive;
+    });
+    
+    console.log(`🔍 hasActiveSubscription result for user ${userId}:`, hasActive);
+    return hasActive;
   }
 
   // Chat session methods

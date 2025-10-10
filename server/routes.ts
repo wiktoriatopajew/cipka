@@ -847,6 +847,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
+  // Middleware to check authentication only (without subscription check)
+  const requireUserOnly = async (req: Request, res: Response, next: any) => {
+    if (!req.session?.userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    // Check if user is blocked
+    if (user.isBlocked) {
+      // Clear the session for blocked users
+      req.session.destroy((err: any) => {
+        if (err) console.error("Session destroy error:", err);
+      });
+      return res.status(403).json({ 
+        error: "Your account has been blocked. Please contact administrator.",
+        blocked: true 
+      });
+    }
+    
+    req.user = user;
+    next();
+  };
+
   // User middleware to check authentication and subscription
   const requireUser = async (req: Request, res: Response, next: any) => {
     if (!req.session?.userId) {
@@ -1892,7 +1919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User heartbeat for online status (protected)
-  app.post("/api/users/heartbeat", requireUser, async (req, res) => {
+  app.post("/api/users/heartbeat", requireUserOnly, async (req, res) => {
     try {
       const updatedUser = await storage.updateUser(req.user.id, { 
         isOnline: true, 
