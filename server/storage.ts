@@ -688,13 +688,15 @@ export class PostgresStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     try {
       const hashedPassword = await bcrypt.hash(user.password, 12);
+      // Usuń pole 'id' z obiektu, aby pozwolić bazie ustawić domyślną wartość
+      const { id, ...userWithoutId } = user;
       const result = await db.insert(users).values({
-        ...user,
+        ...userWithoutId,
         password: hashedPassword,
       }).returning();
       return result[0];
     } catch (error: any) {
-      console.error('SQL error during user creation:', error?.message || error);
+      console.error('SQL error podczas tworzenia użytkownika:', error?.message || error);
       // Spróbuj utworzyć wszystkie wymagane tabele jeśli nie istnieją
       if (error?.message?.includes('relation') && error?.message?.includes('does not exist')) {
         try {
@@ -811,7 +813,7 @@ export class PostgresStorage implements IStorage {
       .orderBy(desc(subscriptions.purchasedAt));
     
     const now = new Date();
-    return userSubscriptions.some(sub => 
+    return userSubscriptions.some((sub: Subscription) => 
       sub.expiresAt && new Date(sub.expiresAt) > now
     );
   }
@@ -868,7 +870,7 @@ export class PostgresStorage implements IStorage {
     
     // Get attachments for each message
     const messagesWithAttachments = await Promise.all(
-      messagesData.map(async (message) => {
+  messagesData.map(async (message: Message) => {
         const messageAttachments = await this.getMessageAttachments(message.id);
         return {
           ...message,
@@ -1462,12 +1464,12 @@ export class PostgresStorage implements IStorage {
         averageOrderValue: revenueResult[0]?.totalRevenue && revenueResult[0]?.count 
           ? Number(revenueResult[0].totalRevenue) / Number(revenueResult[0].count) 
           : 0,
-        revenueByPeriod: dailyRevenue.map(d => ({
+  revenueByPeriod: dailyRevenue.map((d: any) => ({
           date: d.date,
           revenue: Number(d.revenue),
           count: Number(d.count)
         })),
-        topCustomers: topCustomers.map(c => ({
+  topCustomers: topCustomers.map((c: any) => ({
           userId: c.userId,
           totalSpent: Number(c.totalSpent),
           subscriptionCount: Number(c.subscriptionCount)
@@ -1531,8 +1533,8 @@ export class PostgresStorage implements IStorage {
             ? sql`strftime('%Y-%m', ${users.createdAt})`
             : sql`date(${users.createdAt})`);
           
-          labels = userData.map(d => d.period as string);
-          data = userData.map(d => Number(d.count));
+          labels = userData.map((d: any) => d.period as string);
+          data = userData.map((d: any) => Number(d.count));
           break;
 
         case 'revenue':
@@ -1551,8 +1553,8 @@ export class PostgresStorage implements IStorage {
             ? sql`strftime('%Y-%m', ${subscriptions.purchasedAt})`
             : sql`date(${subscriptions.purchasedAt})`);
           
-          labels = revenueData.map(d => d.period as string);
-          data = revenueData.map(d => Number(d.amount));
+          labels = revenueData.map((d: any) => d.period as string);
+          data = revenueData.map((d: any) => Number(d.amount));
           break;
 
         case 'chats':
@@ -1571,8 +1573,8 @@ export class PostgresStorage implements IStorage {
             ? sql`strftime('%Y-%m', ${chatSessions.createdAt})`
             : sql`date(${chatSessions.createdAt})`);
           
-          labels = chatData.map(d => d.period as string);
-          data = chatData.map(d => Number(d.count));
+          labels = chatData.map((d: any) => d.period as string);
+          data = chatData.map((d: any) => Number(d.count));
           break;
       }
 
