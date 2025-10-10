@@ -583,6 +583,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEBUG ADMIN SUBSCRIPTION OPERATIONS
+  app.post("/api/debug/test-subscription", async (req, res) => {
+    try {
+      console.log("🧪 DEBUG: Testing admin subscription operations");
+      
+      const { userId, action, days, amount } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "userId required" });
+      }
+      
+      let result: any = {};
+      
+      if (action === "add-days" && days) {
+        console.log(`🧪 Testing addSubscriptionDays: userId=${userId}, days=${days}`);
+        try {
+          const addResult = await storage.addSubscriptionDays(userId, days);
+          result.addDays = { success: true, data: addResult };
+        } catch (error) {
+          result.addDays = { success: false, error: error.message };
+        }
+      }
+      
+      if (action === "create-subscription" && amount) {
+        console.log(`🧪 Testing createSubscription: userId=${userId}, amount=${amount}`);
+        try {
+          const createResult = await storage.createSubscription({
+            userId: userId,
+            amount: parseFloat(amount),
+            status: 'active'
+          });
+          result.createSubscription = { success: true, data: createResult };
+        } catch (error) {
+          result.createSubscription = { success: false, error: error.message };
+        }
+      }
+      
+      // Get user's current subscriptions
+      try {
+        const userSubs = await storage.getUserSubscriptions(userId);
+        result.currentSubscriptions = userSubs;
+      } catch (error) {
+        result.currentSubscriptions = { error: error.message };
+      }
+      
+      res.json({
+        success: true,
+        userId: userId,
+        action: action,
+        results: result,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error("❌ Debug subscription test error:", error);
+      res.status(500).json({ error: "Subscription test failed", details: error.message });
+    }
+  });
+
   // DEBUG DATABASE CONNECTION ENDPOINT  
   app.get("/api/debug/database", async (req, res) => {
     try {
