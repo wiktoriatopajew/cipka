@@ -878,6 +878,7 @@ export class PostgresStorage implements IStorage {
       userCopy.id = randomUUID();
       
       // Ustaw domyślne wartości explicite (nie polegaj na defaultNow() z bazy)
+      // Używaj ISO stringi dla PostgreSQL
       const now = new Date();
       const result = await db.insert(users).values({
         ...userCopy,
@@ -886,8 +887,8 @@ export class PostgresStorage implements IStorage {
         hasSubscription: userCopy.hasSubscription ?? false,
         isOnline: userCopy.isOnline ?? false,
         isBlocked: userCopy.isBlocked ?? false,
-        createdAt: userCopy.createdAt ?? now,
-        lastSeen: userCopy.lastSeen ?? now,
+        createdAt: userCopy.createdAt ? this.toISOString(userCopy.createdAt) : this.toISOString(now),
+        lastSeen: userCopy.lastSeen ? this.toISOString(userCopy.lastSeen) : this.toISOString(now),
       }).returning();
       const createdUser = result[0];
       // Napraw daty jeśli są nieprawidłowe
@@ -1127,10 +1128,10 @@ export class PostgresStorage implements IStorage {
     try {
       console.log(`📝 Creating message for session ${message.sessionId}`);
       
-      // Ensure message has proper timestamps
+      // Ensure message has proper timestamps using safe date conversion
       const messageWithTimestamp = {
         ...message,
-        createdAt: new Date().toISOString()
+        createdAt: this.toISOString(new Date())
       };
       
       const result = await db.insert(messages).values(messageWithTimestamp).returning();
@@ -1139,7 +1140,7 @@ export class PostgresStorage implements IStorage {
       if (message.sessionId) {
         console.log(`🔄 Updating session ${message.sessionId} lastActivity`);
         await db.update(chatSessions)
-          .set({ lastActivity: new Date().toISOString() })
+          .set({ lastActivity: this.toISOString(new Date()) })
           .where(eq(chatSessions.id, message.sessionId));
       }
       
