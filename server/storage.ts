@@ -882,8 +882,9 @@ export class PostgresStorage implements IStorage {
     try {
       console.log(`🔥 RAW SQL getUser for ID: ${id}`);
       const result = await db.execute(sql`
-        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
-               "referralCode", "referredBy", created_at, last_seen 
+        SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
+               has_subscription as "hasSubscription", is_online as "isOnline",
+               referral_code as "referralCode", referred_by as "referredBy", created_at, last_seen 
         FROM users 
         WHERE id = ${id} 
         LIMIT 1
@@ -906,6 +907,7 @@ export class PostgresStorage implements IStorage {
           isAdmin: rawUser.isAdmin,
           isBlocked: rawUser.isBlocked,
           hasSubscription: rawUser.hasSubscription,
+          isOnline: rawUser.isOnline,
           referralCode: rawUser.referralCode,
           referredBy: rawUser.referredBy,
           createdAt: this.parseTimestamp(rawUser.created_at),
@@ -929,8 +931,9 @@ export class PostgresStorage implements IStorage {
     try {
       console.log(`🔥 RAW SQL getUserByUsername: ${username}`);
       const result = await db.execute(sql`
-        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
-               "referralCode", "referredBy", created_at, last_seen 
+        SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
+               has_subscription as "hasSubscription", is_online as "isOnline",
+               referral_code as "referralCode", referred_by as "referredBy", created_at, last_seen 
         FROM users 
         WHERE username = ${username} 
         LIMIT 1
@@ -946,6 +949,7 @@ export class PostgresStorage implements IStorage {
           isAdmin: rawUser.isAdmin,
           isBlocked: rawUser.isBlocked,
           hasSubscription: rawUser.hasSubscription,
+          isOnline: rawUser.isOnline,
           referralCode: rawUser.referralCode,
           referredBy: rawUser.referredBy,
           createdAt: this.parseTimestamp(rawUser.created_at),
@@ -963,8 +967,9 @@ export class PostgresStorage implements IStorage {
     try {
       console.log(`� RAW SQL getUserByEmail: ${email}`);
       const result = await db.execute(sql`
-        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
-               "referralCode", "referredBy", created_at, last_seen 
+        SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
+               has_subscription as "hasSubscription", is_online as "isOnline",
+               referral_code as "referralCode", referred_by as "referredBy", created_at, last_seen 
         FROM users 
         WHERE email = ${email} 
         LIMIT 1
@@ -981,6 +986,7 @@ export class PostgresStorage implements IStorage {
           isAdmin: rawUser.isAdmin,
           isBlocked: rawUser.isBlocked,
           hasSubscription: rawUser.hasSubscription,
+          isOnline: rawUser.isOnline,
           referralCode: rawUser.referralCode,
           referredBy: rawUser.referredBy,
           createdAt: this.parseTimestamp(rawUser.created_at),
@@ -1175,8 +1181,9 @@ export class PostgresStorage implements IStorage {
     try {
       console.log("🔥 RAW SQL getAllUsers");
       const result = await db.execute(sql`
-        SELECT id, username, email, password, "isAdmin", "isBlocked", "hasSubscription", 
-               "referralCode", "referredBy", created_at, last_seen 
+        SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
+               has_subscription as "hasSubscription", is_online as "isOnline",
+               referral_code as "referralCode", referred_by as "referredBy", created_at, last_seen 
         FROM users 
         ORDER BY created_at DESC
       `);
@@ -1189,6 +1196,7 @@ export class PostgresStorage implements IStorage {
         isAdmin: rawUser.isAdmin,
         isBlocked: rawUser.isBlocked,
         hasSubscription: rawUser.hasSubscription,
+        isOnline: rawUser.isOnline,
         referralCode: rawUser.referralCode,
         referredBy: rawUser.referredBy,
         createdAt: this.parseTimestamp(rawUser.created_at),
