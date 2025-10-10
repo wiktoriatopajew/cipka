@@ -23,7 +23,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: Omit<User, 'id' | 'createdAt' | 'lastSeen'>): Promise<User>;
+  createUser(user: typeof users.$inferInsert): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   verifyPassword(email: string, password: string): Promise<User | null>;
@@ -177,7 +177,7 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async createUser(insertUser: Omit<User, 'id' | 'createdAt' | 'lastSeen'>): Promise<User> {
+  async createUser(insertUser: typeof users.$inferInsert): Promise<User> {
     const id = randomUUID();
     
     // Hash the password before storing
@@ -685,7 +685,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
 
-  async createUser(user: Omit<User, 'id' | 'createdAt' | 'lastSeen'>): Promise<User> {
+  async createUser(user: typeof users.$inferInsert): Promise<User> {
     try {
       const hashedPassword = await bcrypt.hash(user.password, 12);
       // Usuń pole 'id' z obiektu, aby pozwolić bazie ustawić domyślną wartość

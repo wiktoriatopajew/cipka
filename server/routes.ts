@@ -963,10 +963,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.createUser({ 
-        username, 
-        email, 
-        password,
-        referralCode: undefined // Will be generated later
+  username,
+  email,
+  password,
+  referralCode // przekazujemy tylko jeśli istnieje
       });
 
       // Update user with referrer if code was valid
