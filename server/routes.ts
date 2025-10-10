@@ -507,6 +507,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // EMERGENCY DEBUG ENDPOINT - sprawdza i tworzy admin users
+  app.get("/api/debug/admin", async (req, res) => {
+    try {
+      console.log("🚨 EMERGENCY ADMIN DEBUG REQUEST");
+      
+      // Sprawdź wszystkich adminów
+      const allUsers = await storage.getAllUsers();
+      const adminUsers = allUsers.filter(user => user.isAdmin);
+      
+      console.log(`Found ${adminUsers.length} admin users:`, adminUsers.map(u => ({ 
+        id: u.id, 
+        email: u.email, 
+        username: u.username 
+      })));
+      
+      // Jeśli brak adminów, utwórz emergency admin
+      if (adminUsers.length === 0) {
+        console.log("🚨 NO ADMIN USERS FOUND! Creating emergency admin...");
+        
+        const emergencyEmail = "emergency@admin.com";
+        const emergencyPassword = "admin123456";
+        
+        try {
+          const newAdmin = await storage.createUser({
+            username: "emergency_admin",
+            email: emergencyEmail,
+            password: emergencyPassword,
+            isAdmin: true,
+            hasSubscription: true,
+            isOnline: false,
+            isBlocked: false
+          });
+          
+          console.log("✅ Emergency admin created:", { id: newAdmin.id, email: newAdmin.email });
+          
+          return res.json({
+            success: true,
+            message: "Emergency admin created",
+            adminUsers: [{ 
+              id: newAdmin.id, 
+              email: newAdmin.email, 
+              username: newAdmin.username,
+              isEmergency: true
+            }],
+            credentials: {
+              email: emergencyEmail,
+              password: emergencyPassword
+            }
+          });
+          
+        } catch (createError) {
+          console.error("❌ Failed to create emergency admin:", createError);
+          return res.status(500).json({
+            error: "Failed to create emergency admin",
+            details: createError
+          });
+        }
+      }
+      
+      // Zwróć istniejących adminów
+      res.json({
+        success: true,
+        adminUsers: adminUsers.map(u => ({ 
+          id: u.id, 
+          email: u.email, 
+          username: u.username 
+        })),
+        totalUsers: allUsers.length
+      });
+      
+    } catch (error) {
+      console.error("❌ Debug admin error:", error);
+      res.status(500).json({ error: "Debug failed", details: error });
+    }
+  });
+
   // Admin heartbeat endpoint to keep session alive and update online status
   app.post("/api/admin/heartbeat", async (req, res) => {
     if (!req.session?.isAdmin || !req.session?.adminId) {
