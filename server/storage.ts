@@ -892,7 +892,22 @@ export class PostgresStorage implements IStorage {
       `);
       
       console.log(`✅ RAW SQL createUser successful for ${user.username}`);
-      return this.normalizeUserDates(result.rows[0] as User);
+      console.log(`🔍 Raw result structure:`, result);
+      
+      // Handle different result structures between PostgreSQL drivers
+      let newUser: any;
+      if (result.rows && result.rows.length > 0) {
+        newUser = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        newUser = result[0];
+      } else if (result[0]) {
+        newUser = result[0];
+      } else {
+        throw new Error('No user returned from INSERT query');
+      }
+      
+      console.log(`👤 New user from DB:`, newUser);
+      return this.normalizeUserDates(newUser as User);
     } catch (error: any) {
       console.error('SQL error podczas tworzenia użytkownika:', error?.message || error);
       // Spróbuj utworzyć wszystkie wymagane tabele jeśli nie istnieją
