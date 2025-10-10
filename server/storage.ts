@@ -840,6 +840,16 @@ export class PostgresStorage implements IStorage {
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    if (result[0]) {
+      console.log(`🔍 Raw user data from DB for ${id}:`, {
+        user: result[0],
+        lastSeenType: typeof result[0].lastSeen,
+        lastSeenConstructor: result[0].lastSeen?.constructor?.name,
+        lastSeenIsDate: result[0].lastSeen instanceof Date,
+        lastSeenValue: result[0].lastSeen,
+        hasToISOString: typeof result[0].lastSeen?.toISOString === 'function'
+      });
+    }
     return result[0] ? this.fixUserDates(result[0]) : undefined;
   }
 
