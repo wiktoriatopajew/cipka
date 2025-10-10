@@ -872,15 +872,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Check if user has active subscription
     const subscriptions = await storage.getUserSubscriptions(user.id);
-    const activeSubscription = subscriptions.find(sub => 
-      sub.status === "active" && 
-      sub.expiresAt && 
-      new Date(sub.expiresAt) > new Date()
-    );
+    console.log(`🔍 User ${user.username} subscriptions:`, subscriptions.map(s => ({
+      id: s.id,
+      status: s.status,
+      expiresAt: s.expiresAt,
+      expiresAtType: typeof s.expiresAt,
+      isValidDate: s.expiresAt instanceof Date && !isNaN(s.expiresAt.getTime())
+    })));
+    
+    const now = new Date();
+    const activeSubscription = subscriptions.find(sub => {
+      if (sub.status !== "active") return false;
+      if (!sub.expiresAt) return false;
+      
+      // Napraw datę jeśli jest string
+      let expiresDate = sub.expiresAt;
+      if (typeof expiresDate === 'string') {
+        expiresDate = new Date(expiresDate);
+      }
+      
+      // Sprawdź czy data jest prawidłowa
+      if (!(expiresDate instanceof Date) || isNaN(expiresDate.getTime())) {
+        console.log(`❌ Invalid expiresAt date for subscription ${sub.id}:`, sub.expiresAt);
+        return false;
+      }
+      
+      const isActive = expiresDate > now;
+      console.log(`📅 Subscription ${sub.id}: expires ${expiresDate.toISOString()}, now ${now.toISOString()}, active: ${isActive}`);
+      return isActive;
+    });
     
     if (!activeSubscription) {
+      console.log(`❌ No active subscription found for user ${user.username}`);
       return res.status(403).json({ error: "Active subscription required" });
     }
+    
+    console.log(`✅ Active subscription found for user ${user.username}:`, activeSubscription.id);
     
     req.user = user;
     req.subscription = activeSubscription;

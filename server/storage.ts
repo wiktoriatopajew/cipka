@@ -15,7 +15,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { db } from "./db";
+import { db, dbReady } from "./db";
 import { eq, and, desc, lt, gte, lte, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -619,7 +619,15 @@ export class PostgresStorage implements IStorage {
    */
   async createRequiredTables() {
     try {
-      await db.execute(sql`
+      const database = await dbReady;
+      
+      // Skip table creation in development (SQLite) - tables are created via migrations
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('⏭️  Skipping table creation in development mode (using SQLite)');
+        return;
+      }
+      
+      await database.execute(sql`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
           username TEXT NOT NULL UNIQUE,
