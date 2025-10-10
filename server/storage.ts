@@ -709,18 +709,63 @@ export class PostgresStorage implements IStorage {
     const now = new Date();
     
     // Napraw purchasedAt jeśli jest null lub Invalid Date
-    if (!sub.purchasedAt || (sub.purchasedAt instanceof Date && isNaN(sub.purchasedAt.getTime()))) {
+    const purchasedDate = new Date(sub.purchasedAt);
+    if (!sub.purchasedAt || sub.purchasedAt === 'Invalid Date' || isNaN(purchasedDate.getTime())) {
       sub.purchasedAt = now;
+      console.log(`🔧 Fixed invalid purchasedAt for subscription ${sub.id}: set to ${now.toISOString()}`);
     }
     
     // Napraw expiresAt jeśli jest null lub Invalid Date
-    if (!sub.expiresAt || (sub.expiresAt instanceof Date && isNaN(sub.expiresAt.getTime()))) {
+    const expiresDate = new Date(sub.expiresAt);
+    if (!sub.expiresAt || sub.expiresAt === 'Invalid Date' || isNaN(expiresDate.getTime())) {
       // Ustaw na właściwą liczbę dni od teraz
       const daysToAdd = sub.amount === 14.99 ? 1 : (sub.amount === 49.99 ? 30 : 366);
       sub.expiresAt = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+      console.log(`🔧 Fixed invalid expiresAt for subscription ${sub.id}: set to ${sub.expiresAt.toISOString()}`);
     }
     
     return sub;
+  }
+
+  // Function to fix all existing subscriptions with invalid dates
+  async fixAllInvalidSubscriptions(): Promise<void> {
+    try {
+      console.log('🔍 Checking for subscriptions with invalid dates...');
+      const allSubs = await db.select().from(subscriptions);
+      
+      for (const sub of allSubs) {
+        let needsUpdate = false;
+        const updates: any = {};
+        
+        // Check purchasedAt
+        const purchasedDate = new Date(sub.purchasedAt);
+        if (!sub.purchasedAt || sub.purchasedAt === 'Invalid Date' || isNaN(purchasedDate.getTime())) {
+          updates.purchasedAt = new Date();
+          needsUpdate = true;
+          console.log(`🔧 Will fix purchasedAt for subscription ${sub.id}`);
+        }
+        
+        // Check expiresAt  
+        const expiresDate = new Date(sub.expiresAt);
+        if (!sub.expiresAt || sub.expiresAt === 'Invalid Date' || isNaN(expiresDate.getTime())) {
+          const daysToAdd = sub.amount === 14.99 ? 1 : (sub.amount === 49.99 ? 30 : 366);
+          updates.expiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000);
+          needsUpdate = true;
+          console.log(`🔧 Will fix expiresAt for subscription ${sub.id}`);
+        }
+        
+        if (needsUpdate) {
+          await db.update(subscriptions)
+            .set(updates)
+            .where(eq(subscriptions.id, sub.id));
+          console.log(`✅ Fixed subscription ${sub.id}`);
+        }
+      }
+      
+      console.log('✅ Finished checking/fixing subscription dates');
+    } catch (error) {
+      console.error('❌ Error fixing subscription dates:', error);
+    }
   }
 
   // Helper function to fix user dates
@@ -937,9 +982,12 @@ export class PostgresStorage implements IStorage {
   }
 
   async getUserSubscriptions(userId: string): Promise<Subscription[]> {
-    return await db.select().from(subscriptions)
+    const subs = await db.select().from(subscriptions)
       .where(eq(subscriptions.userId, userId))
       .orderBy(desc(subscriptions.purchasedAt));
+    
+    // Napraw daty w każdej subskrypcji
+    return subs.map(sub => this.fixSubscriptionDates(sub));
   }
 
   async getAllActiveSubscriptions(): Promise<Subscription[]> {

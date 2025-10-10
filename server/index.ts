@@ -294,6 +294,11 @@ import { dbReady } from "./db";
     await storage.createRequiredTables();
   }
 
+  // Fix any existing subscriptions with invalid dates
+  if (typeof storage.fixAllInvalidSubscriptions === 'function') {
+    await storage.fixAllInvalidSubscriptions();
+  }
+
   // Initialize admin user after database jest gotowa
   storage.initAdminUser();
 
