@@ -614,6 +614,8 @@ export class MemStorage implements IStorage {
 
 // PostgreSQL Storage implementation using Drizzle ORM
 export class PostgresStorage implements IStorage {
+
+
   /**
    * Tworzy wymagane tabele w bazie Postgres, jeśli nie istnieją
    */
@@ -1433,8 +1435,16 @@ export class PostgresStorage implements IStorage {
         LIMIT 1
       `);
       
-      if (result.rows[0]) {
-        const rawSession = result.rows[0] as any;
+      // 🛡️ DEFENSIVE MAPPING: Handle different PostgreSQL response structures
+      let sessionData = null;
+      if (result?.rows && Array.isArray(result.rows) && result.rows[0]) {
+        sessionData = result.rows[0];
+      } else if (Array.isArray(result) && result[0]) {
+        sessionData = result[0];
+      }
+      
+      if (sessionData) {
+        const rawSession = sessionData as any;
         return {
           id: rawSession.id,
           userId: rawSession.userId,
