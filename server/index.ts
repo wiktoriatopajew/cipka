@@ -23,7 +23,7 @@ app.get('/api/health', async (req, res) => {
       status: 'ok', 
       usersCount: users.length,
       timestamp: new Date().toISOString(),
-      version: '2.1.0' // Force Render redeploy - fixed subscription dates
+      version: '2.1.1' // Force Render redeploy - fixed toISOString errors in dates
     });
   } catch (error) {
     res.status(500).json({ status: 'error', error: String(error) });
