@@ -1057,31 +1057,52 @@ export class PostgresStorage implements IStorage {
 
   // Subscription methods
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
-  const subCopy: any = { ...subscription };
-  subCopy.id = randomUUID();
-  
-  // Ustaw domyślne wartości explicite (nie polegaj na defaultNow() z bazy)
-  const now = new Date();
-  if (!subCopy.purchasedAt) {
-    subCopy.purchasedAt = now;
-  }
-  if (!subCopy.expiresAt) {
-    // Jeśli brak daty, ustaw na 30 dni od teraz  
-    subCopy.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  }
     try {
-      const result = await db.insert(subscriptions).values(subCopy).returning();
-      // Update user hasSubscription flag
-      if (subscription.userId) {
-        await db.update(users)
-          .set({ hasSubscription: true })
-          .where(eq(users.id, subscription.userId));
+      console.log(`🔥 RAW SQL createSubscription for user ${subscription.userId}`);
+      
+      const subscriptionId = randomUUID();
+      const now = new Date().toISOString(); // Direct ISO string
+      
+      // Calculate expires based on amount - FIXED LOGIC
+      let expiresAt: string;
+      if (subscription.expiresAt) {
+        expiresAt = subscription.expiresAt instanceof Date 
+          ? subscription.expiresAt.toISOString() 
+          : new Date(subscription.expiresAt).toISOString();
+      } else {
+        // Set proper expiration based on amount
+        const daysToAdd = subscription.amount === 14.99 ? 1 : (subscription.amount === 49.99 ? 30 : 366);
+        expiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
       }
-      const createdSub = result[0];
-      // Znormalizuj daty z PostgreSQL
+      
+      console.log(`💳 Creating subscription: amount=${subscription.amount}, expires=${expiresAt}`);
+      
+      // Use RAW SQL for subscription creation
+      const result = await db.execute(sql`
+        INSERT INTO subscriptions (
+          id, user_id, amount, status, purchased_at, expires_at
+        ) VALUES (
+          ${subscriptionId}, ${subscription.userId}, ${subscription.amount}, 
+          ${subscription.status || 'active'}, ${now}::timestamp, ${expiresAt}::timestamp
+        ) RETURNING *
+      `);
+      
+      // Handle result structure
+      let createdSub: any;
+      if (result.rows && result.rows.length > 0) {
+        createdSub = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        createdSub = result[0];
+      } else if (result[0]) {
+        createdSub = result[0];
+      } else {
+        throw new Error('No subscription returned from INSERT');
+      }
+      
+      console.log(`✅ RAW SQL createSubscription successful: ${subscriptionId}`);
       return this.normalizeSubscriptionDates(createdSub);
     } catch (error) {
-  console.error('SQL error podczas dodawania subskrypcji:', error);
+      console.error('❌ RAW SQL createSubscription error:', error);
       throw error;
     }
   }
