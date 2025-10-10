@@ -904,13 +904,24 @@ export class PostgresStorage implements IStorage {
         hasSubscription: userCopy.hasSubscription ?? false,
         isOnline: userCopy.isOnline ?? false,
         isBlocked: userCopy.isBlocked ?? false,
-        referralCode: userCopy.referralCode,
-        referredBy: userCopy.referredBy,
+        // Upewnij się że referral pola są null zamiast undefined lub pustych stringów
+        referralCode: userCopy.referralCode || null,
+        referredBy: userCopy.referredBy || null,
         createdAt: nowISO,
         lastSeen: nowISO,
       };
       
       console.log(`📦 Final PostgreSQL insert data:`, userInsertData);
+      
+      // Debug każde pole przed wysłaniem do Drizzle
+      Object.entries(userInsertData).forEach(([key, value]) => {
+        console.log(`🔍 Field ${key}:`, {
+          value,
+          type: typeof value,
+          isDate: value ? (value as any) instanceof Date : false,
+          constructor: (value as any)?.constructor?.name
+        });
+      });
       
       const result = await db.insert(users).values(userInsertData).returning();
       const createdUser = result[0];
