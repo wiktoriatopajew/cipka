@@ -1518,25 +1518,28 @@ export class PostgresStorage implements IStorage {
 
   async addSubscriptionDays(userId: string, days: number): Promise<{ success: boolean; message: string; newExpiryDate: string }> {
     try {
-      // Get user's active subscription
-      const activeSubscription = await db.select()
-        .from(subscriptions)
-        .where(and(
-          eq(subscriptions.userId, userId),
-          eq(subscriptions.status, "active")
-        ))
-        .orderBy(desc(subscriptions.expiresAt))
-        .limit(1);
+      // RAW SQL: Get user's active subscription
+      const result = await db.execute(sql`
+        SELECT id, user_id, expires_at, amount, status
+        FROM subscriptions 
+        WHERE user_id = ${userId} AND status = 'active' 
+        ORDER BY expires_at DESC 
+        LIMIT 1
+      `);
 
-      if (activeSubscription.length > 0) {
+      if (result.rows.length > 0) {
         // User has active subscription - extend it
-        const currentExpiryDate = new Date(activeSubscription[0].expiresAt || new Date());
+        const subscription: any = result.rows[0];
+        const currentExpiryDate = new Date(subscription.expires_at || new Date());
         const newExpiryDate = new Date(currentExpiryDate);
         newExpiryDate.setDate(newExpiryDate.getDate() + days);
         
-        await db.update(subscriptions)
-          .set({ expiresAt: newExpiryDate })
-          .where(eq(subscriptions.id, activeSubscription[0].id));
+        // RAW SQL: Update subscription expiry date
+        await db.execute(sql`
+          UPDATE subscriptions 
+          SET expires_at = ${newExpiryDate.toISOString()}::timestamp 
+          WHERE id = ${subscription.id}
+        `);
 
         return { 
           success: true, 
@@ -1547,18 +1550,27 @@ export class PostgresStorage implements IStorage {
         // User has no active subscription - create new one
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
+        const subscriptionId = randomUUID();
         
-        await db.insert(subscriptions).values({
-          userId: userId,
-          amount: 0, // Admin-granted subscription
-          status: "active",
-          expiresAt: expiresAt.toISOString()
-        });
+        // RAW SQL: Create new subscription
+        await db.execute(sql`
+          INSERT INTO subscriptions (id, user_id, amount, status, expires_at, purchased_at)
+          VALUES (
+            ${subscriptionId}, 
+            ${userId}, 
+            0, 
+            'active', 
+            ${expiresAt.toISOString()}::timestamp,
+            ${new Date().toISOString()}::timestamp
+          )
+        `);
 
-        // Update user subscription status
-        await db.update(users)
-          .set({ hasSubscription: true })
-          .where(eq(users.id, userId));
+        // RAW SQL: Update user subscription status
+        await db.execute(sql`
+          UPDATE users 
+          SET has_subscription = true 
+          WHERE id = ${userId}
+        `);
 
         return { 
           success: true, 
@@ -1567,7 +1579,7 @@ export class PostgresStorage implements IStorage {
         };
       }
     } catch (error) {
-      console.error('Add subscription days error:', error);
+      console.error('❌ RAW SQL addSubscriptionDays error:', error);
       return { 
         success: false, 
         message: "Failed to add subscription days",
