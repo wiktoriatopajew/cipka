@@ -19,7 +19,12 @@ app.get('/api/health', async (req, res) => {
   try {
     // Prosta próba pobrania użytkowników z bazy
     const users = await storage.getAllUsers();
-    res.json({ status: 'ok', usersCount: users.length });
+    res.json({ 
+      status: 'ok', 
+      usersCount: users.length,
+      timestamp: new Date().toISOString(),
+      version: '2.1.0' // Force Render redeploy - fixed subscription dates
+    });
   } catch (error) {
     res.status(500).json({ status: 'error', error: String(error) });
   }
