@@ -871,25 +871,48 @@ export class PostgresStorage implements IStorage {
 
   async createUser(user: typeof users.$inferInsert): Promise<User> {
     try {
+      console.log(`🔧 PostgreSQL createUser input:`, {
+        username: user.username,
+        email: user.email,
+        hasReferralCode: !!user.referralCode,
+        hasReferredBy: !!user.referredBy
+      });
+      
       const hashedPassword = await bcrypt.hash(user.password, 12);
       // Usuń pole 'id' z obiektu, aby pozwolić bazie ustawić domyślną wartość
       const userCopy = { ...user };
       // Generuj UUID dla nowego użytkownika
       userCopy.id = randomUUID();
       
-      // Ustaw domyślne wartości explicite (nie polegaj na defaultNow() z bazy)
-      // Używaj ISO stringi dla PostgreSQL
+      // Ustaw wartości explicite - nie używaj spread operatora który może zawierać niewłaściwe typy
       const now = new Date();
-      const result = await db.insert(users).values({
-        ...userCopy,
+      const nowISO = this.toISOString(now);
+      
+      console.log(`📅 Generated timestamps for PostgreSQL:`, {
+        now: now,
+        nowISO: nowISO,
+        nowType: typeof now,
+        nowISOType: typeof nowISO
+      });
+      
+      const userInsertData = {
+        id: userCopy.id,
+        username: userCopy.username,
         password: hashedPassword,
+        email: userCopy.email,
         isAdmin: userCopy.isAdmin ?? false,
         hasSubscription: userCopy.hasSubscription ?? false,
         isOnline: userCopy.isOnline ?? false,
         isBlocked: userCopy.isBlocked ?? false,
-        createdAt: userCopy.createdAt ? this.toISOString(userCopy.createdAt) : this.toISOString(now),
-        lastSeen: userCopy.lastSeen ? this.toISOString(userCopy.lastSeen) : this.toISOString(now),
-      }).returning();
+        referralCode: userCopy.referralCode,
+        referredBy: userCopy.referredBy,
+        createdAt: nowISO,
+        lastSeen: nowISO,
+      };
+      
+      console.log(`📦 Final PostgreSQL insert data:`, userInsertData);
+      
+      const result = await db.insert(users).values(userInsertData).returning();
       const createdUser = result[0];
       // Napraw daty jeśli są nieprawidłowe
       return this.normalizeUserDates(createdUser);
