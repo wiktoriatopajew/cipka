@@ -686,12 +686,77 @@ export class PostgresStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const hashedPassword = await bcrypt.hash(user.password, 12);
-    const result = await db.insert(users).values({
-      ...user,
-      password: hashedPassword,
-    }).returning();
-    return result[0];
+    try {
+      const hashedPassword = await bcrypt.hash(user.password, 12);
+      const result = await db.insert(users).values({
+        ...user,
+        password: hashedPassword,
+      }).returning();
+      return result[0];
+    } catch (error: any) {
+      console.error('SQL error during user creation:', error?.message || error);
+      // Spróbuj utworzyć wszystkie wymagane tabele jeśli nie istnieją
+      if (error?.message?.includes('relation') && error?.message?.includes('does not exist')) {
+        try {
+          await db.run(sql`
+            CREATE TABLE IF NOT EXISTS users (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+              username TEXT NOT NULL UNIQUE,
+              password TEXT NOT NULL,
+              email TEXT,
+              is_admin BOOLEAN DEFAULT FALSE,
+              has_subscription BOOLEAN DEFAULT FALSE,
+              is_online BOOLEAN DEFAULT FALSE,
+              is_blocked BOOLEAN DEFAULT FALSE,
+              referral_code TEXT UNIQUE,
+              referred_by TEXT,
+              last_seen TIMESTAMP DEFAULT NOW(),
+              created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS subscriptions (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id TEXT REFERENCES users(id),
+              amount REAL,
+              status TEXT DEFAULT 'active',
+              purchased_at TIMESTAMP DEFAULT NOW(),
+              expires_at TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+              user_id TEXT REFERENCES users(id),
+              vehicle_info TEXT,
+              status TEXT DEFAULT 'active',
+              created_at TIMESTAMP DEFAULT NOW(),
+              last_activity TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS messages (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+              session_id TEXT REFERENCES chat_sessions(id),
+              sender_id TEXT REFERENCES users(id),
+              sender_type TEXT,
+              content TEXT NOT NULL,
+              is_read BOOLEAN DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS attachments (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+              message_id TEXT REFERENCES messages(id),
+              file_name TEXT NOT NULL,
+              original_name TEXT NOT NULL,
+              file_size INTEGER NOT NULL,
+              mime_type TEXT NOT NULL,
+              file_path TEXT NOT NULL,
+              uploaded_at TIMESTAMP DEFAULT NOW(),
+              expires_at TIMESTAMP
+            );
+          `);
+          console.log('Wszystkie wymagane tabele utworzone automatycznie.');
+        } catch (tableError) {
+          console.error('Błąd przy automatycznym tworzeniu tabel:', tableError);
+        }
+      }
+      throw error;
+    }
   }
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
