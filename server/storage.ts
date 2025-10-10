@@ -707,8 +707,8 @@ export class PostgresStorage implements IStorage {
     
     // Napraw expiresAt jeśli jest null lub Invalid Date
     if (!sub.expiresAt || (sub.expiresAt instanceof Date && isNaN(sub.expiresAt.getTime()))) {
-      // Ustaw na 7 dni od teraz dla $14.99
-      const daysToAdd = sub.amount === 14.99 ? 7 : (sub.amount === 49.99 ? 30 : 365);
+      // Ustaw na właściwą liczbę dni od teraz
+      const daysToAdd = sub.amount === 14.99 ? 1 : (sub.amount === 49.99 ? 30 : 366);
       sub.expiresAt = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
     }
     
