@@ -583,6 +583,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SIMPLE DEBUG SUBSCRIPTION DAYS
+  app.post("/api/debug/simple-add-days", async (req, res) => {
+    try {
+      const { userId, days } = req.body;
+      console.log(`🔥 SIMPLE DEBUG: addSubscriptionDays userId=${userId}, days=${days}`);
+      
+      if (!userId || !days) {
+        return res.status(400).json({ error: "userId and days required" });
+      }
+      
+      // Call function directly and catch any errors
+      let result;
+      let errorDetails = null;
+      
+      try {
+        result = await storage.addSubscriptionDays(userId, parseInt(days));
+        console.log(`✅ addSubscriptionDays result:`, result);
+      } catch (error) {
+        console.error(`❌ addSubscriptionDays threw error:`, error);
+        errorDetails = {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.substring(0, 500)
+        };
+      }
+      
+      res.json({
+        success: true,
+        result: result || null,
+        error: errorDetails,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (outerError) {
+      console.error("❌ Outer error in simple-add-days:", outerError);
+      res.status(500).json({ 
+        error: "Endpoint failed", 
+        details: outerError.message 
+      });
+    }
+  });
+
   // DEBUG ADMIN SUBSCRIPTION OPERATIONS
   app.post("/api/debug/test-subscription", async (req, res) => {
     try {
