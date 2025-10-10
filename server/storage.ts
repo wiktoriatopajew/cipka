@@ -1357,7 +1357,7 @@ export class PostgresStorage implements IStorage {
       console.log(`🔥 RAW SQL getChatSession: ${id}`);
       const result = await db.execute(sql`
         SELECT id, user_id as "userId", vehicle_info as "vehicleInfo", 
-               status, created_at, updated_at 
+               status, created_at, last_activity 
         FROM chat_sessions 
         WHERE id = ${id} 
         LIMIT 1
@@ -1371,7 +1371,7 @@ export class PostgresStorage implements IStorage {
           vehicleInfo: rawSession.vehicleInfo,
           status: rawSession.status,
           createdAt: this.parseTimestamp(rawSession.created_at),
-          updatedAt: this.parseTimestamp(rawSession.updated_at)
+          lastActivity: this.parseTimestamp(rawSession.last_activity)
         };
       }
       return undefined;
@@ -1386,10 +1386,10 @@ export class PostgresStorage implements IStorage {
       console.log(`🔥 RAW SQL getUserChatSessions: ${userId}`);
       const result = await db.execute(sql`
         SELECT id, user_id as "userId", vehicle_info as "vehicleInfo", 
-               status, created_at, updated_at 
+               status, created_at, last_activity 
         FROM chat_sessions 
         WHERE user_id = ${userId} 
-        ORDER BY updated_at DESC
+        ORDER BY last_activity DESC
       `);
       
       return result.rows.map((rawSession: any) => ({
@@ -1398,7 +1398,7 @@ export class PostgresStorage implements IStorage {
         vehicleInfo: rawSession.vehicleInfo,
         status: rawSession.status,
         createdAt: this.parseTimestamp(rawSession.created_at),
-        updatedAt: this.parseTimestamp(rawSession.updated_at)
+        lastActivity: this.parseTimestamp(rawSession.last_activity)
       }));
     } catch (error) {
       console.error("❌ RAW SQL getUserChatSessions error:", error);
@@ -1411,10 +1411,10 @@ export class PostgresStorage implements IStorage {
       console.log("🔥 RAW SQL getAllActiveChatSessions");
       const result = await db.execute(sql`
         SELECT id, user_id as "userId", vehicle_info as "vehicleInfo", 
-               status, created_at, updated_at 
+               status, created_at, last_activity 
         FROM chat_sessions 
         WHERE status = 'active' 
-        ORDER BY updated_at DESC
+        ORDER BY last_activity DESC
       `);
       
       return result.rows.map((rawSession: any) => ({
@@ -1423,7 +1423,7 @@ export class PostgresStorage implements IStorage {
         vehicleInfo: rawSession.vehicleInfo,
         status: rawSession.status,
         createdAt: this.parseTimestamp(rawSession.created_at),
-        updatedAt: this.parseTimestamp(rawSession.updated_at)
+        lastActivity: this.parseTimestamp(rawSession.last_activity)
       }));
     } catch (error) {
       console.error("❌ RAW SQL getAllActiveChatSessions error:", error);
@@ -1587,7 +1587,7 @@ export class PostgresStorage implements IStorage {
         fileSize: createdAttachment.file_size,
         mimeType: createdAttachment.mime_type,
         filePath: createdAttachment.file_path,
-        createdAt: new Date(createdAttachment.created_at),
+        uploadedAt: new Date(createdAttachment.uploaded_at),
         expiresAt: new Date(createdAttachment.expires_at)
       };
     } catch (error) {
@@ -1629,7 +1629,7 @@ export class PostgresStorage implements IStorage {
         fileSize: row.fileSize,
         mimeType: row.mimeType,
         filePath: row.filePath,
-        createdAt: new Date(row.createdAt),
+        uploadedAt: new Date(row.uploadedAt),
         expiresAt: new Date(row.expiresAt)
       }));
     } catch (error) {
