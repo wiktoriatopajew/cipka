@@ -614,6 +614,68 @@ export class MemStorage implements IStorage {
 
 // PostgreSQL Storage implementation using Drizzle ORM
 export class PostgresStorage implements IStorage {
+  /**
+   * Tworzy wymagane tabele w bazie Postgres, jeśli nie istnieją
+   */
+  async createRequiredTables() {
+    try {
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          email TEXT,
+          is_admin BOOLEAN DEFAULT FALSE,
+          has_subscription BOOLEAN DEFAULT FALSE,
+          is_online BOOLEAN DEFAULT FALSE,
+          is_blocked BOOLEAN DEFAULT FALSE,
+          referral_code TEXT UNIQUE,
+          referred_by TEXT,
+          last_seen TIMESTAMP DEFAULT NOW(),
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id TEXT REFERENCES users(id),
+          amount REAL,
+          status TEXT DEFAULT 'active',
+          purchased_at TIMESTAMP DEFAULT NOW(),
+          expires_at TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id TEXT REFERENCES users(id),
+          vehicle_info TEXT,
+          status TEXT DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT NOW(),
+          last_activity TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS messages (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          session_id TEXT REFERENCES chat_sessions(id),
+          sender_id TEXT REFERENCES users(id),
+          sender_type TEXT,
+          content TEXT NOT NULL,
+          is_read BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS attachments (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          message_id TEXT REFERENCES messages(id),
+          file_name TEXT NOT NULL,
+          original_name TEXT NOT NULL,
+          file_size INTEGER NOT NULL,
+          mime_type TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          uploaded_at TIMESTAMP DEFAULT NOW(),
+          expires_at TIMESTAMP
+        );
+      `);
+      console.log('Wszystkie wymagane tabele utworzone automatycznie (startup).');
+    } catch (error) {
+      console.error('Błąd przy automatycznym tworzeniu tabel (startup):', error);
+    }
+  }
   
   // Helper function to convert Date objects to ISO strings for SQLite
   private convertDates(obj: any): any {
@@ -786,8 +848,8 @@ export class PostgresStorage implements IStorage {
 
   // Subscription methods
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
-    const subCopy = { ...subscription };
-    subCopy.id = randomUUID();
+  const subCopy: any = { ...subscription };
+  subCopy.id = randomUUID();
     try {
       const result = await db.insert(subscriptions).values(subCopy).returning();
       // Update user hasSubscription flag
@@ -798,7 +860,7 @@ export class PostgresStorage implements IStorage {
       }
       return result[0];
     } catch (error) {
-      console.error('SQL error podczas dodawania subskrypcji:', error, error?.stack);
+  console.error('SQL error podczas dodawania subskrypcji:', error);
       throw error;
     }
   }

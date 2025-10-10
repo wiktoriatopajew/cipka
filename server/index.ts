@@ -1,3 +1,13 @@
+// Endpoint health-check do testu połączenia z bazą
+app.get('/api/health', async (req, res) => {
+  try {
+    // Prosta próba pobrania użytkowników z bazy
+    const users = await storage.getAllUsers();
+    res.json({ status: 'ok', usersCount: users.length });
+  } catch (error) {
+    res.status(500).json({ status: 'error', error: String(error) });
+  }
+});
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -13,6 +23,17 @@ import fs from "fs";
 import Stripe from "stripe";
 
 const app = express();
+
+// Endpoint health-check do testu połączenia z bazą
+app.get('/api/health', async (req, res) => {
+  try {
+    // Prosta próba pobrania użytkowników z bazy
+    const users = await storage.getAllUsers();
+    res.json({ status: 'ok', usersCount: users.length });
+  } catch (error) {
+    res.status(500).json({ status: 'error', error: String(error) });
+  }
+});
 
 // Trust proxy for Render deployment
 if (process.env.NODE_ENV === 'production') {
@@ -278,7 +299,12 @@ import { dbReady } from "./db";
   // Wait for database migrations to complete before starting the server
   await dbReady;
 
-  // Initialize admin user after database is ready
+  // Tworzenie wymaganych tabel przy starcie serwera
+  if (typeof storage.createRequiredTables === 'function') {
+    await storage.createRequiredTables();
+  }
+
+  // Initialize admin user after database jest gotowa
   storage.initAdminUser();
 
   // Start background jobs that require DB only after db is ready
