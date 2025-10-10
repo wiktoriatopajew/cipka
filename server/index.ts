@@ -1,13 +1,3 @@
-// Endpoint health-check do testu połączenia z bazą
-app.get('/api/health', async (req, res) => {
-  try {
-    // Prosta próba pobrania użytkowników z bazy
-    const users = await storage.getAllUsers();
-    res.json({ status: 'ok', usersCount: users.length });
-  } catch (error) {
-    res.status(500).json({ status: 'error', error: String(error) });
-  }
-});
 import dotenv from "dotenv";
 dotenv.config();
 
