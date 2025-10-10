@@ -694,6 +694,46 @@ export class PostgresStorage implements IStorage {
     return obj;
   }
 
+  // Helper function to fix subscription dates
+  private fixSubscriptionDates(sub: any): any {
+    if (!sub) return sub;
+    
+    const now = new Date();
+    
+    // Napraw purchasedAt jeśli jest null lub Invalid Date
+    if (!sub.purchasedAt || (sub.purchasedAt instanceof Date && isNaN(sub.purchasedAt.getTime()))) {
+      sub.purchasedAt = now;
+    }
+    
+    // Napraw expiresAt jeśli jest null lub Invalid Date
+    if (!sub.expiresAt || (sub.expiresAt instanceof Date && isNaN(sub.expiresAt.getTime()))) {
+      // Ustaw na 7 dni od teraz dla $14.99
+      const daysToAdd = sub.amount === 14.99 ? 7 : (sub.amount === 49.99 ? 30 : 365);
+      sub.expiresAt = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    }
+    
+    return sub;
+  }
+
+  // Helper function to fix user dates
+  private fixUserDates(user: any): any {
+    if (!user) return user;
+    
+    const now = new Date();
+    
+    // Napraw createdAt jeśli jest null lub Invalid Date
+    if (!user.createdAt || (user.createdAt instanceof Date && isNaN(user.createdAt.getTime()))) {
+      user.createdAt = now;
+    }
+    
+    // Napraw lastSeen jeśli jest null lub Invalid Date
+    if (!user.lastSeen || (user.lastSeen instanceof Date && isNaN(user.lastSeen.getTime()))) {
+      user.lastSeen = now;
+    }
+    
+    return user;
+  }
+
   async initAdminUser() {
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
@@ -734,7 +774,7 @@ export class PostgresStorage implements IStorage {
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    return result[0];
+    return result[0] ? this.fixUserDates(result[0]) : undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -765,7 +805,9 @@ export class PostgresStorage implements IStorage {
         isBlocked: userCopy.isBlocked ?? false,
         // createdAt i lastSeen - pozwól bazie ustawić defaultNow()
       }).returning();
-      return result[0];
+      const createdUser = result[0];
+      // Napraw daty jeśli są nieprawidłowe
+      return this.fixUserDates(createdUser);
     } catch (error: any) {
       console.error('SQL error podczas tworzenia użytkownika:', error?.message || error);
       // Spróbuj utworzyć wszystkie wymagane tabele jeśli nie istnieją
@@ -873,7 +915,9 @@ export class PostgresStorage implements IStorage {
           .set({ hasSubscription: true })
           .where(eq(users.id, subscription.userId));
       }
-      return result[0];
+      const createdSub = result[0];
+      // Napraw daty jeśli są nieprawidłowe
+      return this.fixSubscriptionDates(createdSub);
     } catch (error) {
   console.error('SQL error podczas dodawania subskrypcji:', error);
       throw error;
