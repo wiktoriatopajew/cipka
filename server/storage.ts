@@ -736,10 +736,20 @@ export class PostgresStorage implements IStorage {
   private normalizeUserDates(user: any): any {
     if (!user) return user;
     
+    const safeToDate = (value: any): Date => {
+      if (!value || value === null || value === undefined) return new Date();
+      if (value instanceof Date && !isNaN(value.getTime())) return value;
+      if (typeof value === 'string') {
+        const parsed = new Date(value);
+        return isNaN(parsed.getTime()) ? new Date() : parsed;
+      }
+      return new Date();
+    };
+    
     return {
       ...user,
-      createdAt: this.toDate(user.createdAt),
-      lastSeen: this.toDate(user.lastSeen)
+      createdAt: safeToDate(user.createdAt),
+      lastSeen: safeToDate(user.lastSeen)
     };
   }
 
@@ -1410,10 +1420,10 @@ export class PostgresStorage implements IStorage {
           id, message_id as "messageId", file_name as "fileName", 
           original_name as "originalName", file_size as "fileSize", 
           mime_type as "mimeType", file_path as "filePath", 
-          created_at as "createdAt", expires_at as "expiresAt"
+          uploaded_at as "uploadedAt", expires_at as "expiresAt"
         FROM attachments 
         WHERE message_id = ${messageId}
-        ORDER BY created_at ASC
+        ORDER BY uploaded_at ASC
       `);
       
       // Handle different result structures
