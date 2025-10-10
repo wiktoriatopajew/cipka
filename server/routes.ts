@@ -583,6 +583,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DEBUG DATABASE CONNECTION ENDPOINT  
+  app.get("/api/debug/database", async (req, res) => {
+    try {
+      console.log("🗄️ DEBUG DATABASE CONNECTION REQUEST");
+      
+      const dbInfo = {
+        NODE_ENV: process.env.NODE_ENV,
+        HAS_DATABASE_URL: !!process.env.DATABASE_URL,
+        DATABASE_URL_LENGTH: process.env.DATABASE_URL?.length || 0,
+        DATABASE_URL_HOST: process.env.DATABASE_URL ? 
+          process.env.DATABASE_URL.split('@')[1]?.split('/')[0] || 'unknown' : 'none',
+        DATABASE_URL_PREVIEW: process.env.DATABASE_URL ? 
+          process.env.DATABASE_URL.substring(0, 30) + '...' + process.env.DATABASE_URL.substring(process.env.DATABASE_URL.length - 10) : 'none'
+      };
+      
+      console.log("Database info:", dbInfo);
+      
+      // Test connection przez count users
+      let connectionTest = "unknown";
+      try {
+        const allUsers = await storage.getAllUsers();
+        connectionTest = `✅ Connected - ${allUsers.length} users found`;
+      } catch (error) {
+        connectionTest = `❌ Connection failed: ${error.message}`;
+      }
+      
+      res.json({
+        success: true,
+        database: dbInfo,
+        connectionTest: connectionTest,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error("❌ Debug database error:", error);
+      res.status(500).json({ error: "Database debug failed", details: error.message });
+    }
+  });
+
   // DEBUG PASSWORD VERIFICATION ENDPOINT
   app.post("/api/debug/verify", async (req, res) => {
     try {
