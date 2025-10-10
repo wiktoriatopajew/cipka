@@ -904,7 +904,7 @@ export class PostgresStorage implements IStorage {
         isBlocked: row.isBlocked,
         referralCode: row.referralCode,
         referredBy: row.referredBy,
-        lastSeen: new Date(row.lastSeen),
+        lastSeen: row.lastSeen ? new Date(row.lastSeen) : null,
         createdAt: new Date(row.createdAt)
       };
     } catch (error) {
