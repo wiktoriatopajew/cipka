@@ -689,9 +689,11 @@ export class PostgresStorage implements IStorage {
     try {
       const hashedPassword = await bcrypt.hash(user.password, 12);
       // Usuń pole 'id' z obiektu, aby pozwolić bazie ustawić domyślną wartość
-      const { id, ...userWithoutId } = user;
+      // Usuń pole 'id' z obiektu, aby nie było przekazane do inserta
+      const userCopy = { ...user };
+      delete userCopy.id;
       const result = await db.insert(users).values({
-        ...userWithoutId,
+        ...userCopy,
         password: hashedPassword,
       }).returning();
       return result[0];
