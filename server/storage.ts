@@ -754,9 +754,18 @@ export class PostgresStorage implements IStorage {
       const userCopy = { ...user };
       // Generuj UUID dla nowego użytkownika
       userCopy.id = randomUUID();
+      
+      // Ustaw domyślne wartości, jeśli nie są podane
+      const now = new Date();
       const result = await db.insert(users).values({
         ...userCopy,
         password: hashedPassword,
+        isAdmin: userCopy.isAdmin ?? false,
+        hasSubscription: userCopy.hasSubscription ?? false,
+        isOnline: userCopy.isOnline ?? false,
+        isBlocked: userCopy.isBlocked ?? false,
+        createdAt: userCopy.createdAt ?? now,
+        lastSeen: userCopy.lastSeen ?? now,
       }).returning();
       return result[0];
     } catch (error: any) {
@@ -850,6 +859,14 @@ export class PostgresStorage implements IStorage {
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
   const subCopy: any = { ...subscription };
   subCopy.id = randomUUID();
+  
+  // Ustaw domyślne wartości, jeśli nie są podane
+  const now = new Date();
+  subCopy.purchasedAt = subCopy.purchasedAt ?? now;
+  if (!subCopy.expiresAt || isNaN(new Date(subCopy.expiresAt).getTime())) {
+    // Jeśli expiresAt nie jest prawidłową datą, ustaw na 30 dni od teraz
+    subCopy.expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  }
     try {
       const result = await db.insert(subscriptions).values(subCopy).returning();
       // Update user hasSubscription flag
