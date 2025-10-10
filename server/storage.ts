@@ -994,15 +994,45 @@ export class PostgresStorage implements IStorage {
       
       console.log(`� Saving to PostgreSQL:`, dbUpdates);
       
-      const result = await db.update(users)
-        .set(dbUpdates)
-        .where(eq(users.id, id))
-        .returning();
+      // ZASTĄPIONE RAW SQL - Drizzle ORM ma problemy z PostgreSQL timestamp
+      const setParts: string[] = [];
+      const values: any[] = [];
       
-      if (result[0]) {
-        // Normalizuj daty w wynikach z bazy
-        const normalizedUser = this.normalizeUserDates(result[0]);
-        console.log(`✅ User ${id} updated, dates normalized`);
+      Object.entries(dbUpdates).forEach(([key, value]) => {
+        let dbColumnName = key;
+        switch (key) {
+          case 'isAdmin': dbColumnName = 'is_admin'; break;
+          case 'hasSubscription': dbColumnName = 'has_subscription'; break;
+          case 'isOnline': dbColumnName = 'is_online'; break;
+          case 'isBlocked': dbColumnName = 'is_blocked'; break;
+          case 'referralCode': dbColumnName = 'referral_code'; break;
+          case 'referredBy': dbColumnName = 'referred_by'; break;
+          case 'lastSeen': dbColumnName = 'last_seen'; break;
+          case 'createdAt': dbColumnName = 'created_at'; break;
+        }
+        setParts.push(`${dbColumnName} = '${value}'${key.includes('Seen') || key.includes('At') ? '::timestamp' : ''}`);
+      });
+      
+      const result = await db.execute(sql`
+        UPDATE users 
+        SET ${sql.raw(setParts.join(', '))}
+        WHERE id = ${id}
+        RETURNING *
+      `);
+      
+      // Handle PostgreSQL result structure
+      let updatedUser: any;
+      if (result.rows && result.rows.length > 0) {
+        updatedUser = result.rows[0];
+      } else if (Array.isArray(result) && result.length > 0) {
+        updatedUser = result[0];
+      } else if (result[0]) {
+        updatedUser = result[0];
+      }
+      
+      if (updatedUser) {
+        const normalizedUser = this.normalizeUserDates(updatedUser);
+        console.log(`✅ RAW SQL User ${id} updated, dates normalized`);
         return normalizedUser;
       }
       
@@ -1083,7 +1113,7 @@ export class PostgresStorage implements IStorage {
       const expiresDate = sub.expiresAt;
       const isActive = expiresDate > now;
       
-      console.log(`📅 PostgreSQL subscription check for ${userId}: ${sub.id} expires ${expiresDate.toISOString()}, active: ${isActive}`);
+      console.log(`📅 PostgreSQL subscription check for ${userId}: ${sub.id} expires ${this.toISOString(expiresDate)}, active: ${isActive}`);
       return isActive;
     });
     
