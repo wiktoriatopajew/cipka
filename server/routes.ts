@@ -1236,12 +1236,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Verify payment and create subscription - SECURE
   app.post("/api/verify-payment-and-subscribe", requireAuth, async (req, res) => {
     try {
+      console.log('START verify-payment-and-subscribe', req.body, req.session);
       if (!req.session?.userId) {
+        console.log('Brak userId w sesji');
         return res.status(401).json({ error: "Authentication required" });
       }
 
       // Check if user already has an active subscription (prevent duplicate payments)
       const existingSubscriptions = await storage.getUserSubscriptions(req.session.userId);
+      console.log('Istniejące subskrypcje:', existingSubscriptions);
       const activeSubscription = existingSubscriptions.find(sub => 
         sub.status === "active" && 
         sub.expiresAt && 
@@ -1249,14 +1252,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       if (activeSubscription) {
+        console.log('Użytkownik ma już aktywną subskrypcję');
         return res.status(400).json({ error: "User already has an active subscription" });
       }
 
       const { paymentIntentId, paypalOrderId, paymentMethod, amount } = req.body;
+      console.log('Dane płatności:', { paymentIntentId, paypalOrderId, paymentMethod, amount });
 
       // Validate amount
       const validAmounts = [14.99, 49.99, 79.99];
       if (!amount || !validAmounts.includes(parseFloat(amount))) {
+        console.log('Niepoprawna kwota:', amount);
         return res.status(400).json({ error: "Invalid amount" });
       }
 
@@ -1277,17 +1283,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (paymentMethod === "stripe" && paymentIntentId) {
         if (!stripe) {
+          console.log('Stripe nie skonfigurowany');
           return res.status(503).json({ error: "Stripe not configured" });
         }
         
         // Get dynamic Stripe instance (fallback to default)
         const stripeInstance = await getStripeInstance() || stripe;
         if (!stripeInstance) {
+          console.log('Stripe instance nie skonfigurowany');
           return res.status(503).json({ error: "Stripe not configured" });
         }
         
         // Verify Stripe payment
         const paymentIntent = await stripeInstance.paymentIntents.retrieve(paymentIntentId);
+        console.log('Stripe paymentIntent:', paymentIntent);
         
         if (paymentIntent.status === "succeeded" && 
             paymentIntent.amount === STRIPE_AMOUNT_CENTS && 
@@ -1295,19 +1304,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           paymentVerified = true;
         }
       } else if (paymentMethod === "paypal" && paypalOrderId) {
-        // Note: PayPal verification is limited without modifying paypal.ts blueprint
-        // The orderID comes from client after successful capture
-        // Ideally, we would verify the order server-side with PayPal API
-        // For now, we rely on the fact that:
-        // 1. PayPalButton captures the order server-side via /paypal/order/:orderID/capture
-        // 2. Duplicate subscriptions are prevented by checking active subscriptions above
-        // This is a known limitation - see architect feedback
+        console.log('PayPal orderId:', paypalOrderId);
         paymentVerified = true;
       } else {
+        console.log('Niepoprawna metoda płatności lub brak ID');
         return res.status(400).json({ error: "Invalid payment method or missing payment ID" });
       }
 
       if (!paymentVerified) {
+        console.log('Weryfikacja płatności nieudana');
         return res.status(400).json({ error: "Payment verification failed" });
       }
 
@@ -1315,27 +1320,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subscriptionDays = getSubscriptionDays(SUBSCRIPTION_AMOUNT);
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + subscriptionDays);
-      
+      console.log('Tworzenie subskrypcji:', { userId: req.session.userId, amount: SUBSCRIPTION_AMOUNT, status: "active", expiresAt });
       const subscription = await storage.createSubscription({
         userId: req.session.userId,
         amount: SUBSCRIPTION_AMOUNT,
         status: "active",
         expiresAt: expiresAt
       });
-      
+      console.log('Subskrypcja utworzona:', subscription);
       // Update user hasSubscription flag
       await storage.updateUser(req.session.userId, { hasSubscription: true });
-      
+      console.log('Zaktualizowano flagę hasSubscription dla użytkownika');
       // Check if user was referred and update referral progress
       const user = await storage.getUser(req.session.userId);
+      console.log('Dane użytkownika po subskrypcji:', user);
       if (user?.referredBy) {
         await storage.updateReferralProgress(user.referredBy, user.id);
         console.log(`Updated referral progress for referrer ${user.referredBy} due to new subscription by ${user.username}`);
       }
-      
       res.json(subscription);
     } catch (error: any) {
-  console.error("Payment verification error:", error, error?.stack);
+      console.error("Payment verification error:", error, error?.stack);
       res.status(500).json({ error: "Failed to verify payment and create subscription" });
     }
   });
