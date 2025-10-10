@@ -1557,14 +1557,40 @@ export class PostgresStorage implements IStorage {
         LIMIT 1
       `);
 
-      console.log(`🔍 Found ${result.rows.length} active subscriptions for user ${userId}`);
+      // Fix: Handle different result structures
+      console.log(`🔍 RAW SQL result structure:`, {
+        hasRows: !!result.rows,
+        isArray: Array.isArray(result),
+        resultType: typeof result,
+        keys: Object.keys(result)
+      });
 
-      if (result.rows.length > 0) {
+      let rows: any[] = [];
+      if (result.rows && Array.isArray(result.rows)) {
+        rows = result.rows;
+      } else if (Array.isArray(result)) {
+        rows = result;
+      } else {
+        console.log(`❌ Unexpected result structure:`, result);
+        rows = [];
+      }
+
+      console.log(`🔍 Found ${rows.length} active subscriptions for user ${userId}`);
+
+      if (rows.length > 0) {
         // User has active subscription - extend it
-        const subscription: any = result.rows[0];
+        const subscription: any = rows[0];
+        console.log(`🔍 Current subscription:`, {
+          id: subscription.id,
+          expires_at: subscription.expires_at,
+          amount: subscription.amount
+        });
+        
         const currentExpiryDate = new Date(subscription.expires_at || new Date());
         const newExpiryDate = new Date(currentExpiryDate);
         newExpiryDate.setDate(newExpiryDate.getDate() + days);
+        
+        console.log(`🔍 Updating expiry: ${currentExpiryDate.toISOString()} -> ${newExpiryDate.toISOString()}`);
         
         // RAW SQL: Update subscription expiry date
         await db.execute(sql`
@@ -1573,6 +1599,7 @@ export class PostgresStorage implements IStorage {
           WHERE id = ${subscription.id}
         `);
 
+        console.log(`✅ Successfully added ${days} days to subscription ${subscription.id}`);
         return { 
           success: true, 
           message: `Added ${days} days to existing subscription`,
