@@ -239,6 +239,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await capturePaypalOrder(req, res);
   });
 
+  // PayPal API endpoints (with /api prefix for frontend)
+  app.post("/api/paypal/create-order", async (req, res) => {
+    await createPaypalOrder(req, res);
+  });
+
+  app.post("/api/paypal/capture-order/:orderID", async (req, res) => {
+    await capturePaypalOrder(req, res);
+  });
+
   // Get Stripe public key for frontend
   app.get("/api/stripe-config", (req, res) => {
     const publicKey = process.env.VITE_STRIPE_PUBLIC_KEY;
@@ -250,8 +259,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get PayPal client ID for frontend
   app.get("/api/paypal-config", (req, res) => {
-    // Use environment variable or fallback to demo Client ID for testing
-    const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || 'AYAGEotOKUQBA0T6PC_JMy_VwNJKLCGQrfgYccmtVxM9cRhU3nkczUnBEhXD49e33qRPb56v9eLnfOCB';
+    // Use environment variable or fallback to your sandbox Client ID
+    const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || 'AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB';
     
     console.log('🔍 PayPal Config Request:', {
       hasEnvClientId: !!process.env.PAYPAL_CLIENT_ID,
@@ -262,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     res.json({ 
       clientId,
-      mode: process.env.NODE_ENV === 'production' ? 'live' : 'sandbox'
+      mode: 'sandbox' // Always use sandbox for testing
     });
   });
 

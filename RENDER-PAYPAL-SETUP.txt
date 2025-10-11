@@ -1,0 +1,38 @@
+🔧 RENDER ENVIRONMENT VARIABLES SETUP - PAYPAL
+=====================================================
+
+KROKI DO WYKONANIA NA RENDER DASHBOARD:
+======================================
+
+1. Idź na: https://render.com/dashboard
+2. Znajdź swoją aplikację AutoMentor
+3. Kliknij na aplikację
+4. W menu po lewej kliknij "Environment"
+5. Dodaj te zmienne środowiskowe:
+
+ZMIENNE DO DODANIA:
+==================
+
+PAYPAL_CLIENT_ID=AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB
+PAYPAL_CLIENT_SECRET=EAkvlZmB_DqTu_KyBw2Fb_xupIJrt549e321Pd1bsWzmuAZrohQX10er1CFRiYjObtRiHpxfeoOyZRqU
+
+WAŻNE:
+- Kliknij "Save Changes" po dodaniu zmiennych
+- Render automatycznie zrestartuje aplikację
+- PayPal teraz pobiera Client ID z backendu przez /api/paypal-config
+
+JAK TO DZIAŁA TERAZ:
+===================
+✅ Frontend nie potrzebuje VITE_PAYPAL_CLIENT_ID
+✅ PayPal komponent pobiera Client ID z /api/paypal-config
+✅ Backend używa PAYPAL_CLIENT_ID ze zmiennych środowiskowych Render
+✅ Brak zależności od bazy danych dla PayPal konfiguracji
+
+TESTOWANIE:
+==========
+Po ustawieniu zmiennych na Render:
+1. Sprawdź czy PayPal się ładuje bez błędów
+2. Sprawdź endpoint: https://yourdomain.com/api/paypal-config
+3. Powinien zwrócić Client ID
+
+STATUS: Wdrożone na Render - czeka na ustawienie zmiennych środowiskowych

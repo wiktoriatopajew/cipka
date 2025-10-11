@@ -12,6 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PayPalButton from "@/components/PayPalButton";
 import SimpleStripePayment from "@/components/SimpleStripePayment";
+import SimplePayPalPayment from "@/components/SimplePayPalPayment";
 import { GoogleAdsConversions, PLAN_PRICES, PlanType } from "@/lib/googleAdsTracking";
 
 interface PaymentModalProps {
@@ -522,20 +523,13 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
 
               {/* PayPal Payment */}
               {paymentMethod === "paypal" && email && (
-                <div className="space-y-3">
-                  <div className="p-4 border rounded-lg bg-muted/30">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Click the PayPal button below to complete your payment securely.
-                    </p>
-                    <PayPalButton
-                      amount={currentPrice.toString()}
-                      currency="USD"
-                      intent="CAPTURE"
-                      onSuccess={handlePayPalSuccess}
-                      onError={handlePayPalError}
-                    />
-                  </div>
-                </div>
+                <SimplePayPalPayment
+                  amount={currentPrice}
+                  currency="USD"
+                  email={email}
+                  onSuccess={handlePayPalSuccess}
+                  onError={handlePayPalError}
+                />
               )}
 
               {paymentMethod === "paypal" && !email && (
