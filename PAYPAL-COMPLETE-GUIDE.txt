@@ -1,0 +1,75 @@
+🎉 PAYPAL INTEGRATION COMPLETE - SANDBOX MODE
+=============================================
+
+KOMPLETNA INTEGRACJA PAYPAL JAK STRIPE:
+=======================================
+
+✅ IMPLEMENTED FEATURES:
+- SimplePayPalPayment component (like SimpleStripePayment)
+- PayPal payment → user creation flow
+- Sandbox mode for testing
+- Environment variables from Render
+- SQL database integration
+- API endpoints: /api/paypal/create-order, /api/paypal/capture-order
+- PayPal config endpoint: /api/paypal-config
+
+🔧 RENDER SETUP REQUIRED:
+========================
+
+1. Go to: https://render.com/dashboard
+2. Find your AutoMentor application
+3. Click "Environment" in left menu
+4. Add these environment variables:
+
+PAYPAL_CLIENT_ID=AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB
+PAYPAL_CLIENT_SECRET=EAkvlZmB_DqTu_KyBw2Fb_xupIJrt549e321Pd1bsWzmuAZrohQX10er1CFRiYjObtRiHpxfeoOyZRqU
+
+5. Click "Save Changes"
+6. Render will automatically restart
+
+🧪 HOW TO TEST:
+==============
+
+1. Go to registration page on your Render app
+2. Select PayPal payment method
+3. Enter email address
+4. Click PayPal button
+5. Use PayPal Sandbox test account:
+   - Email: sb-buyer@personal.example.com
+   - Password: password (or create new sandbox account)
+6. Complete PayPal payment
+7. User should be created automatically
+8. Chat session should start
+
+📊 FLOW SUMMARY:
+===============
+
+1. User enters email → PayPal payment form appears
+2. User clicks PayPal → redirected to PayPal sandbox
+3. Payment completed → backend captures payment
+4. Backend verifies PayPal order
+5. User account created in SQL database
+6. Subscription activated
+7. Chat session created
+8. User redirected to chat
+
+🔍 DEBUGGING:
+============
+
+Check logs for:
+- "✅ PayPal config loaded for payment"
+- "🔄 Creating PayPal order for amount"
+- "✅ PayPal order created"
+- "🔄 Capturing PayPal order"
+- "✅ PayPal payment captured"
+
+⚠️ IMPORTANT NOTES:
+==================
+
+- Always use SANDBOX mode for testing
+- Your Client ID is sandbox credentials (starts with AQ...)
+- PayPal requires HTTPS (works on Render, not localhost)
+- Orders must be COMPLETED status to verify payment
+- Amount verification included (like Stripe)
+
+STATUS: ✅ DEPLOYED - Ready for testing after adding environment variables

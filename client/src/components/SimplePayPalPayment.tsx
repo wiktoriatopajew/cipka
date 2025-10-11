@@ -84,11 +84,12 @@ export default function SimplePayPalPayment({
   const initialOptions = {
     clientId: paypalConfig.clientId,
     currency: currency,
-    intent: 'CAPTURE',
-    'data-sdk-integration-source': 'integrationbuilder_sc',
-    components: 'buttons',
-    'enable-funding': 'venmo,paylater'
+    intent: 'capture',
+    // Simplified options for better compatibility
+    components: 'buttons'
   };
+
+  console.log('🔍 PayPal SDK Options:', initialOptions);
 
   return (
     <div className="space-y-6">
@@ -122,14 +123,13 @@ export default function SimplePayPalPayment({
       {/* PayPal Buttons */}
       <PayPalScriptProvider options={initialOptions}>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <PayPalButtons
-            style={{
-              layout: 'vertical',
-              color: 'blue',
-              shape: 'rect',
-              label: 'paypal',
-              height: 45
-            }}
+          <div style={{ minHeight: '45px' }}>
+            <PayPalButtons
+              style={{
+                color: 'blue',
+                shape: 'rect',
+                label: 'paypal'
+              }}
             createOrder={async (data, actions) => {
               try {
                 console.log('🔄 Creating PayPal order for amount:', amount);
@@ -211,7 +211,8 @@ export default function SimplePayPalPayment({
               });
               onError(`PayPal error: ${error.message || 'Unknown error'}`);
             }}
-          />
+            />
+          </div>
         </div>
       </PayPalScriptProvider>
 
