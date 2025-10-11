@@ -259,19 +259,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get PayPal client ID for frontend
   app.get("/api/paypal-config", (req, res) => {
-    // Use environment variable or fallback to your sandbox Client ID
-    const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || 'AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB';
+    console.log('📞 PayPal Config Request - checking environment variables...');
     
-    console.log('🔍 PayPal Config Request:', {
-      hasEnvClientId: !!process.env.PAYPAL_CLIENT_ID,
-      hasViteClientId: !!process.env.VITE_PAYPAL_CLIENT_ID,
-      usingClientId: clientId.substring(0, 20) + '...',
-      nodeEnv: process.env.NODE_ENV
+    // Check all possible PayPal env vars
+    const allEnvVars = {
+      PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID,
+      VITE_PAYPAL_CLIENT_ID: process.env.VITE_PAYPAL_CLIENT_ID,
+      NODE_ENV: process.env.NODE_ENV
+    };
+    
+    console.log('🔍 Environment check:', {
+      hasPaypalClientId: !!process.env.PAYPAL_CLIENT_ID,
+      hasVitePaypalClientId: !!process.env.VITE_PAYPAL_CLIENT_ID,
+      nodeEnv: process.env.NODE_ENV,
+      envKeysCount: Object.keys(process.env).length
+    });
+    
+    // Use environment variable or hardcoded fallback for testing
+    const clientId = process.env.PAYPAL_CLIENT_ID || 
+                    process.env.VITE_PAYPAL_CLIENT_ID || 
+                    'AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB';
+    
+    console.log('✅ Returning PayPal config:', {
+      clientIdLength: clientId.length,
+      clientIdPreview: clientId.substring(0, 20) + '...',
+      mode: 'sandbox'
     });
     
     res.json({ 
       clientId,
-      mode: 'sandbox' // Always use sandbox for testing
+      mode: 'sandbox'
     });
   });
 

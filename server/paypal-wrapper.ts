@@ -37,12 +37,26 @@ export async function loadPaypalDefault(req: Request, res: Response) {
 }
 
 export async function createPaypalOrder(req: Request, res: Response) {
+  console.log('🔧 PayPal createOrder called - checking credentials...');
+  console.log('PayPal credentials check:', {
+    hasClientId: !!process.env.PAYPAL_CLIENT_ID,
+    hasSecret: !!process.env.PAYPAL_CLIENT_SECRET,
+    clientIdLength: process.env.PAYPAL_CLIENT_ID?.length || 0
+  });
+  
   const module = await ensurePayPalModule();
   if (!module) {
+    console.log('❌ PayPal module not loaded - missing credentials');
     return res.status(503).json({ 
-      error: "PayPal payment processing is temporarily unavailable. Please use card payment or try again later." 
+      error: "PayPal payment processing is temporarily unavailable. Please use card payment or try again later.",
+      debug: {
+        hasClientId: !!process.env.PAYPAL_CLIENT_ID,
+        hasSecret: !!process.env.PAYPAL_CLIENT_SECRET
+      }
     });
   }
+  
+  console.log('✅ PayPal module loaded, calling createPaypalOrder...');
   return module.createPaypalOrder(req, res);
 }
 
