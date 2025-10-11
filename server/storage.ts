@@ -2514,9 +2514,21 @@ export class PostgresStorage implements IStorage {
 
   async getAppConfig(): Promise<any> {
     try {
+      console.log('🔥 RAW SQL getAppConfig');
       const result = await db.select().from(appConfig).limit(1);
       
-      if (result.length === 0) {
+      console.log('🔍 PostgreSQL App Config result:', {
+        result: typeof result,
+        length: result?.length,
+        hasRows: !!result?.rows,
+        rawResult: result
+      });
+      
+      // Defensive mapping for different PostgreSQL response structures
+      const configs = result?.rows || (Array.isArray(result) ? result : []);
+      
+      if (configs.length === 0) {
+        console.log('❌ No App Config found, returning default');
         // Return default config if none exists
         const baseUrl = process.env.NODE_ENV === 'production' 
           ? 'https://cipka.onrender.com' 
@@ -2545,38 +2557,116 @@ export class PostgresStorage implements IStorage {
         };
       }
       
-      return result[0];
+      const config = configs[0];
+      console.log('✅ App Config found:', {
+        id: config.id,
+        app_name: config.app_name || config.appName,
+        stripe_publishable_key: config.stripe_publishable_key || config.stripePublishableKey
+      });
+      
+      // Map database column names to expected property names
+      const mappedConfig = {
+        id: config.id,
+        appName: config.app_name || config.appName || 'AutoMentor',
+        appUrl: config.app_url || config.appUrl || 'https://cipka.onrender.com',
+        stripePublishableKey: config.stripe_publishable_key || config.stripePublishableKey || '',
+        stripeSecretKey: config.stripe_secret_key || config.stripeSecretKey || '',
+        stripeWebhookSecret: config.stripe_webhook_secret || config.stripeWebhookSecret || '',
+        paypalClientId: config.paypal_client_id || config.paypalClientId || '',
+        paypalClientSecret: config.paypal_client_secret || config.paypalClientSecret || '',
+        paypalWebhookId: config.paypal_webhook_id || config.paypalWebhookId || '',
+        paypalMode: config.paypal_mode || config.paypalMode || 'sandbox',
+        smtpHost: config.smtp_host || config.smtpHost || '',
+        smtpPort: config.smtp_port || config.smtpPort || 587,
+        smtpSecure: config.smtp_secure !== undefined ? config.smtp_secure : (config.smtpSecure !== undefined ? config.smtpSecure : true),
+        smtpUser: config.smtp_user || config.smtpUser || '',
+        smtpPass: config.smtp_pass || config.smtpPass || '',
+        emailFrom: config.email_from || config.emailFrom || '',
+        emailFromName: config.email_from_name || config.emailFromName || 'AutoMentor',
+        supportEmail: config.support_email || config.supportEmail || '',
+        faviconPath: config.favicon_path || config.faviconPath || '',
+        updatedAt: this.parseTimestamp(config.updated_at || config.updatedAt)
+      };
+      
+      console.log('✅ Mapped App Config:', mappedConfig);
+      return mappedConfig;
     } catch (error) {
-      console.error('Error getting app config:', error);
+      console.error('❌ RAW SQL getAppConfig error:', error);
       throw error;
     }
   }
 
   async updateAppConfig(config: any): Promise<any> {
     try {
-      const existingConfig = await db.select().from(appConfig).limit(1);
+      console.log('🔥 RAW SQL updateAppConfig:', config);
       
-      if (existingConfig.length > 0) {
+      const existingConfigResult = await db.select().from(appConfig).limit(1);
+      
+      // Defensive mapping for existing config check
+      const existingConfigs = existingConfigResult?.rows || (Array.isArray(existingConfigResult) ? existingConfigResult : []);
+      
+      if (existingConfigs.length > 0) {
+        console.log('✅ Updating existing App Config with ID:', existingConfigs[0].id);
         // Update existing config
         const result = await db.update(appConfig)
           .set({
-            ...config,
+            appName: config.appName,
+            appUrl: config.appUrl,
+            stripePublishableKey: config.stripePublishableKey,
+            stripeSecretKey: config.stripeSecretKey,
+            stripeWebhookSecret: config.stripeWebhookSecret,
+            paypalClientId: config.paypalClientId,
+            paypalClientSecret: config.paypalClientSecret,
+            paypalWebhookId: config.paypalWebhookId,
+            paypalMode: config.paypalMode,
+            smtpHost: config.smtpHost,
+            smtpPort: config.smtpPort,
+            smtpSecure: config.smtpSecure,
+            smtpUser: config.smtpUser,
+            smtpPass: config.smtpPass,
+            emailFrom: config.emailFrom,
+            emailFromName: config.emailFromName,
+            supportEmail: config.supportEmail,
+            faviconPath: config.faviconPath,
             updatedAt: new Date()
           })
-          .where(eq(appConfig.id, existingConfig[0].id))
+          .where(eq(appConfig.id, existingConfigs[0].id))
           .returning();
-        return result[0];
+          
+        console.log('✅ App Config updated:', result);
+        const updatedConfigs = result?.rows || (Array.isArray(result) ? result : []);
+        return updatedConfigs[0] || result[0];
       } else {
+        console.log('✅ Creating new App Config');
         // Create new config
         const result = await db.insert(appConfig).values({
-          ...config,
-          id: 1,
+          appName: config.appName || 'AutoMentor',
+          appUrl: config.appUrl || 'https://cipka.onrender.com',
+          stripePublishableKey: config.stripePublishableKey || '',
+          stripeSecretKey: config.stripeSecretKey || '',
+          stripeWebhookSecret: config.stripeWebhookSecret || '',
+          paypalClientId: config.paypalClientId || '',
+          paypalClientSecret: config.paypalClientSecret || '',
+          paypalWebhookId: config.paypalWebhookId || '',
+          paypalMode: config.paypalMode || 'sandbox',
+          smtpHost: config.smtpHost || '',
+          smtpPort: config.smtpPort || 587,
+          smtpSecure: config.smtpSecure !== undefined ? config.smtpSecure : true,
+          smtpUser: config.smtpUser || '',
+          smtpPass: config.smtpPass || '',
+          emailFrom: config.emailFrom || '',
+          emailFromName: config.emailFromName || 'AutoMentor',
+          supportEmail: config.supportEmail || '',
+          faviconPath: config.faviconPath || '',
           updatedAt: new Date()
         }).returning();
-        return result[0];
+        
+        console.log('✅ New App Config created:', result);
+        const newConfigs = result?.rows || (Array.isArray(result) ? result : []);
+        return newConfigs[0] || result[0];
       }
     } catch (error) {
-      console.error('Error updating app config:', error);
+      console.error('❌ RAW SQL updateAppConfig error:', error);
       throw error;
     }
   }
