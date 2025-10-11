@@ -241,7 +241,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // PayPal API endpoints (with /api prefix for frontend)
   app.post("/api/paypal/create-order", async (req, res) => {
-    await createPaypalOrder(req, res);
+    console.log('📞 /api/paypal/create-order endpoint hit');
+    console.log('Request body:', req.body);
+    console.log('Environment check:', {
+      hasPaypalClientId: !!process.env.PAYPAL_CLIENT_ID,
+      hasPaypalSecret: !!process.env.PAYPAL_CLIENT_SECRET,
+      nodeEnv: process.env.NODE_ENV
+    });
+    
+    try {
+      await createPaypalOrder(req, res);
+    } catch (error) {
+      console.error('❌ Error in /api/paypal/create-order:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: error.message,
+        debug: 'Check server logs for details'
+      });
+    }
   });
 
   app.post("/api/paypal/capture-order/:orderID", async (req, res) => {
