@@ -248,6 +248,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ publicKey });
   });
 
+  // Get PayPal client ID for frontend
+  app.get("/api/paypal-config", (req, res) => {
+    const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
+    if (!clientId) {
+      return res.status(503).json({ error: "PayPal not configured" });
+    }
+    res.json({ 
+      clientId,
+      mode: process.env.NODE_ENV === 'production' ? 'live' : 'sandbox'
+    });
+  });
+
   // Stripe payment route - reference: blueprint:javascript_stripe
   app.post("/api/create-payment-intent", rateLimit({ 
     windowMs: 60000, // 1 minute

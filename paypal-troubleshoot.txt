@@ -1,0 +1,38 @@
+PAYPAL TROUBLESHOOTING GUIDE
+============================
+
+BŁĄD 400 - Client ID nie jest prawidłowy lub nie jest aktywny
+
+KROKI NAPRAWCZE:
+===============
+
+1. SPRAWDŹ PAYPAL DEVELOPER DASHBOARD:
+   - Idź na https://developer.paypal.com/
+   - Zaloguj się na swoje konto
+   - Sprawdź czy aplikacja jest ACTIVE (aktywna)
+   - Sprawdź czy używasz SANDBOX Client ID (nie production)
+
+2. TWÓJ OBECNY CLIENT ID:
+   AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB
+   
+   Ten Client ID zwraca błąd 400 - prawdopodobnie:
+   - Nie jest aktywny
+   - Jest dla production a nie sandbox
+   - Aplikacja nie została zaakceptowana
+
+3. JAK NAPRAWIĆ:
+   a) Sprawdź w PayPal Developer Dashboard status aplikacji
+   b) Upewnij się że używasz SANDBOX environment
+   c) Sprawdź czy aplikacja ma status "Live" czy "In Development"
+
+4. TYMCZASOWE ROZWIĄZANIE:
+   Mogę utworzyć demo Client ID dla testów jeśli chcesz
+
+5. TESTOWY CLIENT ID PAYPAL (demo):
+   Demo Client ID: sb-43uf9k19257855@business.example.com
+   (To jest tylko przykład - musisz użyć swojego prawdziwego)
+
+NASTĘPNE KROKI:
+- Sprawdź PayPal Developer Dashboard
+- Potwierdź status aplikacji
+- Upewnij się że używasz sandbox environment

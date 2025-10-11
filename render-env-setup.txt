@@ -1,0 +1,35 @@
+RENDER ENVIRONMENT VARIABLES SETUP
+===================================
+
+Musisz dodać te zmienne środowiskowe w Render Dashboard:
+
+1. Zaloguj się na https://render.com
+2. Przejdź do swojego serwisu AutoMentor
+3. Kliknij "Environment" w menu po lewej
+4. Dodaj następujące zmienne:
+
+BACKEND VARIABLES:
+-----------------
+SESSION_SECRET=supersekretnahaslo123
+ADMIN_EMAIL=admin@wp.pl
+ADMIN_PASSWORD=admin
+STRIPE_SECRET_KEY=sk_test_51NSmbFEqdkqBXQdXrEz0bAOIpvojgH0QcmYwxYME01B2UMzdBBMv6TujwyOi3cousrcjA6icA0MRDnC8OCS7gY3l006E7Gwo6h
+PAYPAL_CLIENT_ID=AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB
+PAYPAL_CLIENT_SECRET=EAkvlZmB_DqTu_KyBw2Fb_xupIJrt549e321Pd1bsWzmuAZrohQX10er1CFRiYjObtRiHpxfeoOyZRqU
+DATABASE_URL=postgresql://automentor_db_user:5VpcIDdEOOyvQWeE36f6nMir3ofwythZ@dpg-d3j3iojuibrs73dac2e0-a/automentor_db
+
+FRONTEND VARIABLES (VITE):
+-------------------------
+VITE_STRIPE_PUBLIC_KEY=pk_test_51NSmbFEqdkqBXQdX4uoBQAu2Y0Uk8RyulN1hXl8iJnMv3w6MVHUvy3T8usJoJNkZ6QB9AtwJtm0IgTZo5muaDFuC00Zc2YiOWp
+VITE_PAYPAL_CLIENT_ID=AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB
+
+WAŻNE:
+- Po dodaniu zmiennych środowiskowych na Render kliknij "Save Changes"
+- Render automatycznie zrestartuje aplikację
+- Sprawdź czy wszystkie zmienne zostały poprawnie zapisane
+- Zmienne VITE_ są dostępne TYLKO w frontend (client) kodzie
+- Zmienne bez VITE_ są dostępne TYLKO w backend (server) kodzie
+
+TESTOWANIE:
+- Po ustawieniu zmiennych, sprawdź czy PayPal się ładuje bez błędów 400
+- Sprawdź w DevTools Console czy VITE_PAYPAL_CLIENT_ID jest dostępne

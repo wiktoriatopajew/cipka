@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 
 interface PayPalButtonProps {
@@ -9,6 +9,11 @@ interface PayPalButtonProps {
   onError: (error: any) => void;
 }
 
+interface PayPalConfig {
+  clientId: string;
+  mode: string;
+}
+
 export default function PayPalButton({
   amount,
   currency = 'USD',
@@ -16,26 +21,51 @@ export default function PayPalButton({
   onSuccess,
   onError
 }: PayPalButtonProps) {
-  const paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+  const [paypalConfig, setPaypalConfig] = useState<PayPalConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  console.log('PayPal Client ID:', paypalClientId ? 'Present' : 'Missing');
-  console.log('Environment:', import.meta.env.MODE);
+  useEffect(() => {
+    // Fetch PayPal config from backend
+    fetch('/api/paypal-config')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('PayPal not configured');
+        }
+        return response.json();
+      })
+      .then((config: PayPalConfig) => {
+        console.log('✅ PayPal config loaded:', { clientId: config.clientId.substring(0, 20) + '...', mode: config.mode });
+        setPaypalConfig(config);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('❌ Failed to load PayPal config:', error);
+        setError(error.message);
+        setLoading(false);
+      });
+  }, []);
 
-  if (!paypalClientId) {
+  if (loading) {
+    return (
+      <div className="p-4 border border-gray-200 bg-gray-50 rounded-lg">
+        <p className="text-gray-600 text-sm">Loading PayPal...</p>
+      </div>
+    );
+  }
+
+  if (error || !paypalConfig) {
     return (
       <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
         <p className="text-red-600 text-sm">
-          PayPal configuration missing. Client ID not found in environment variables.
-        </p>
-        <p className="text-xs text-red-500 mt-1">
-          Environment: {import.meta.env.MODE}
+          PayPal configuration error: {error || 'Configuration not available'}
         </p>
       </div>
     );
   }
 
   const initialOptions = {
-    clientId: paypalClientId,
+    clientId: paypalConfig.clientId,
     currency: currency,
     intent: intent,
     // Use sandbox environment for testing
