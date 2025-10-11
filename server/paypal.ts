@@ -66,7 +66,7 @@ export async function getClientToken() {
 
 export async function createPaypalOrder(req: Request, res: Response) {
   try {
-    const { amount, currency, intent } = req.body;
+    const { amount, currency, intent = 'CAPTURE' } = req.body;
 
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       return res
@@ -91,11 +91,7 @@ export async function createPaypalOrder(req: Request, res: Response) {
         });
     }
 
-    if (!intent) {
-      return res
-        .status(400)
-        .json({ error: "Invalid intent. Intent is required." });
-    }
+    // Intent defaults to 'CAPTURE' if not provided
 
     const collect = {
       body: {

@@ -123,6 +123,7 @@ export default function SimplePayPalPayment({
                   body: JSON.stringify({
                     amount: amount.toString(),
                     currency: currency,
+                    intent: 'CAPTURE',
                     email: email
                   }),
                 });
