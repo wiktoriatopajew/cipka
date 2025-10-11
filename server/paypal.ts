@@ -104,6 +104,11 @@ export async function createPaypalOrder(req: Request, res: Response) {
             },
           },
         ],
+        applicationContext: {
+          returnUrl: `${req.protocol}://${req.get('host')}/payment-success?source=paypal`,
+          cancelUrl: `${req.protocol}://${req.get('host')}/payment-cancelled?source=paypal`,
+          brandName: "AutoMentor"
+        },
       },
       prefer: "return=minimal",
     };
@@ -113,6 +118,13 @@ export async function createPaypalOrder(req: Request, res: Response) {
 
     const jsonResponse = JSON.parse(String(body));
     const httpStatusCode = httpResponse.statusCode;
+
+    // Add checkout URL for popup blocker fallback
+    if (jsonResponse.id && httpStatusCode < 400) {
+      const checkoutUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${jsonResponse.id}`;
+      jsonResponse.checkoutUrl = checkoutUrl;
+      console.log('🔗 PayPal checkout URL generated:', checkoutUrl);
+    }
 
     res.status(httpStatusCode).json(jsonResponse);
   } catch (error) {

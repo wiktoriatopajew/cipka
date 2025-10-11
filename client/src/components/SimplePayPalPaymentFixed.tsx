@@ -27,6 +27,7 @@ export default function SimplePayPalPayment({
   const [paypalConfig, setPaypalConfig] = useState<PayPalConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -134,6 +135,12 @@ export default function SimplePayPalPayment({
 
                 const orderData = await response.json();
                 console.log('✅ PayPal order created:', orderData.id);
+                
+                // Store checkout URL as fallback for popup blockers
+                if (orderData.checkoutUrl) {
+                  setCheckoutUrl(orderData.checkoutUrl);
+                }
+                
                 return orderData.id;
               } catch (error) {
                 console.error('❌ Error creating order:', error);
@@ -168,6 +175,8 @@ export default function SimplePayPalPayment({
                   variant: "default"
                 });
 
+                // Clear checkout URL on success
+                setCheckoutUrl(null);
                 onSuccess(data.orderID);
               } catch (error) {
                 console.error('❌ Error capturing payment:', error);
@@ -181,16 +190,118 @@ export default function SimplePayPalPayment({
             }}
             onError={(error) => {
               console.error('❌ PayPal error:', error);
-              toast({
-                title: "PayPal Error",
-                description: "An error occurred. Please try again.",
-                variant: "destructive"
-              });
+              
+              // Handle popup blocker specifically
+              if (error && typeof error === 'object' && 
+                  ('popup' in error || 'blocked' in error || 
+                   (error.toString && error.toString().includes('blocked')))) {
+                toast({
+                  title: "Popup Blocked",
+                  description: "Please allow popups or use the manual payment link below.",
+                  variant: "destructive"
+                });
+              } else {
+                toast({
+                  title: "PayPal Error",
+                  description: "An error occurred. Please try again.",
+                  variant: "destructive"
+                });
+              }
+              
               onError(`PayPal error: ${error}`);
             }}
+            style={{
+              layout: 'vertical',
+              color: 'gold',
+              shape: 'rect',
+              tagline: false
+            }}
           />
+          
+          {/* Manual Payment Button - Alternative to PayPal Buttons */}
+          <div className="mt-4">
+            <div className="text-center text-sm text-gray-500 mb-2">or</div>
+            <Button
+              onClick={async () => {
+                try {
+                  console.log('🔄 Creating manual PayPal order...');
+                  const response = await fetch('/api/paypal/create-order', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      amount: amount.toString(),
+                      currency: currency,
+                      intent: 'CAPTURE',
+                      email: email
+                    }),
+                  });
+
+                  if (!response.ok) {
+                    throw new Error('Failed to create order');
+                  }
+
+                  const orderData = await response.json();
+                  console.log('✅ Manual PayPal order created:', orderData.id);
+                  
+                  // Open PayPal checkout immediately 
+                  if (orderData.checkoutUrl) {
+                    window.location.href = orderData.checkoutUrl;
+                  } else {
+                    // Fallback URL construction
+                    const fallbackUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${orderData.id}`;
+                    window.location.href = fallbackUrl;
+                  }
+                } catch (error) {
+                  console.error('❌ Error creating manual order:', error);
+                  toast({
+                    title: "Payment Error",
+                    description: "Failed to create PayPal order. Please try again.",
+                    variant: "destructive"
+                  });
+                }
+              }}
+              variant="outline"
+              className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              Pay with PayPal (Direct)
+            </Button>
+          </div>
+          
+          {/* Popup Blocker Fallback */}
+          {checkoutUrl && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800 mb-3">
+                <strong>Popup blocked?</strong> Click the button below to complete your payment:
+              </p>
+              <Button
+                onClick={() => {
+                  window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                Continue to PayPal
+              </Button>
+              <p className="text-xs text-yellow-600 mt-2">
+                This will open PayPal in a new tab
+              </p>
+            </div>
+          )}
         </div>
       </PayPalScriptProvider>
+
+      {/* Instructions */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <p className="text-xs text-gray-600 mb-2">
+          <strong>Having trouble with payment?</strong>
+        </p>
+        <ul className="text-xs text-gray-500 space-y-1">
+          <li>• If popups are blocked, use the "Pay with PayPal (Direct)" button</li>
+          <li>• Make sure JavaScript is enabled in your browser</li>
+          <li>• Try refreshing the page if buttons don't load</li>
+        </ul>
+      </div>
 
       {/* Security Badge */}
       <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
