@@ -250,10 +250,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get PayPal client ID for frontend
   app.get("/api/paypal-config", (req, res) => {
-    const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID;
-    if (!clientId) {
-      return res.status(503).json({ error: "PayPal not configured" });
-    }
+    // Use environment variable or fallback to demo Client ID for testing
+    const clientId = process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID || 'AYAGEotOKUQBA0T6PC_JMy_VwNJKLCGQrfgYccmtVxM9cRhU3nkczUnBEhXD49e33qRPb56v9eLnfOCB';
+    
+    console.log('🔍 PayPal Config Request:', {
+      hasEnvClientId: !!process.env.PAYPAL_CLIENT_ID,
+      hasViteClientId: !!process.env.VITE_PAYPAL_CLIENT_ID,
+      usingClientId: clientId.substring(0, 20) + '...',
+      nodeEnv: process.env.NODE_ENV
+    });
+    
     res.json({ 
       clientId,
       mode: process.env.NODE_ENV === 'production' ? 'live' : 'sandbox'
