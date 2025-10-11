@@ -18,11 +18,17 @@ export default function PayPalButton({
 }: PayPalButtonProps) {
   const paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
 
+  console.log('PayPal Client ID:', paypalClientId ? 'Present' : 'Missing');
+  console.log('Environment:', import.meta.env.MODE);
+
   if (!paypalClientId) {
     return (
       <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
         <p className="text-red-600 text-sm">
-          PayPal configuration missing. Please contact support.
+          PayPal configuration missing. Client ID not found in environment variables.
+        </p>
+        <p className="text-xs text-red-500 mt-1">
+          Environment: {import.meta.env.MODE}
         </p>
       </div>
     );
@@ -32,7 +38,11 @@ export default function PayPalButton({
     clientId: paypalClientId,
     currency: currency,
     intent: intent,
+    // Use sandbox environment for testing
+    'data-sdk-integration-source': 'integrationbuilder_sc',
   };
+
+  console.log('PayPal SDK Options:', initialOptions);
 
   return (
     <PayPalScriptProvider options={initialOptions}>
