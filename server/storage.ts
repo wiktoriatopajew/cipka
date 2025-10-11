@@ -791,7 +791,6 @@ export class PostgresStorage implements IStorage {
   // Function to fix all existing subscriptions with invalid dates
   async fixAllInvalidSubscriptions(): Promise<void> {
     try {
-      console.log('🔍 Checking for subscriptions with invalid dates...');
       const allSubs = await db.select().from(subscriptions);
       
       for (const sub of allSubs) {
@@ -812,18 +811,14 @@ export class PostgresStorage implements IStorage {
           const daysToAdd = sub.amount === 14.99 ? 1 : (sub.amount === 49.99 ? 30 : 366);
           updates.expiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000);
           needsUpdate = true;
-          console.log(`🔧 Will fix expiresAt for subscription ${sub.id}`);
         }
         
         if (needsUpdate) {
           await db.update(subscriptions)
             .set(updates)
             .where(eq(subscriptions.id, sub.id));
-          console.log(`✅ Fixed subscription ${sub.id}`);
         }
       }
-      
-      console.log('✅ Finished checking/fixing subscription dates');
     } catch (error) {
       console.error('❌ Error fixing subscription dates:', error);
     }
@@ -853,12 +848,9 @@ export class PostgresStorage implements IStorage {
               true, true, false, false, ${now}::timestamp, ${now}::timestamp
             )
           `);
-          console.log(`✅ Admin user created with RAW SQL - email: ${adminEmail}`);
         } catch (error) {
           console.error(`❌ Failed to create admin user:`, error);
         }
-      } else {
-        console.log(`ℹ️ Admin user already exists: ${adminEmail}`);
       }
     }
 
@@ -882,7 +874,6 @@ export class PostgresStorage implements IStorage {
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     try {
-      console.log(`🔥 RAW SQL getUser for ID: ${id}`);
       const result = await db.execute(sql`
         SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
                has_subscription as "hasSubscription", is_online as "isOnline",
@@ -902,12 +893,6 @@ export class PostgresStorage implements IStorage {
       
       if (userData) {
         const rawUser = userData as any;
-        console.log(`🔍 Raw PostgreSQL user for ${id}:`, {
-          lastSeenRaw: rawUser.last_seen,
-          lastSeenType: typeof rawUser.last_seen,
-          createdAtRaw: rawUser.created_at,
-          createdAtType: typeof rawUser.created_at
-        });
         
         const user = {
           id: rawUser.id,
@@ -924,10 +909,6 @@ export class PostgresStorage implements IStorage {
           lastSeen: this.parseTimestamp(rawUser.last_seen)
         };
         
-        console.log(`✅ User ${id} dates normalized:`, {
-          lastSeen: user.lastSeen,
-          createdAt: user.createdAt
-        });
         return user;
       }
       return undefined;
@@ -939,7 +920,6 @@ export class PostgresStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     try {
-      console.log(`🔥 RAW SQL getUserByUsername: ${username}`);
       const result = await db.execute(sql`
         SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
                has_subscription as "hasSubscription", is_online as "isOnline",
@@ -983,7 +963,6 @@ export class PostgresStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     try {
-      console.log(`� RAW SQL getUserByEmail: ${email}`);
       const result = await db.execute(sql`
         SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
                has_subscription as "hasSubscription", is_online as "isOnline",
@@ -992,14 +971,6 @@ export class PostgresStorage implements IStorage {
         WHERE email = ${email} 
         LIMIT 1
       `);
-      
-      console.log(`🔍 PostgreSQL result structure:`, {
-        result: typeof result,
-        hasRows: !!result?.rows,
-        rowsLength: result?.rows?.length,
-        isArray: Array.isArray(result),
-        resultLength: Array.isArray(result) ? result.length : 'not array'
-      });
       
       // Handle different PostgreSQL response structures
       let userData = null;
@@ -1011,7 +982,6 @@ export class PostgresStorage implements IStorage {
       
       if (userData) {
         const rawUser = userData as any;
-        console.log(`✅ RAW SQL: Found user "${email}" - isAdmin: ${rawUser.isAdmin}`);
         return {
           id: rawUser.id,
           username: rawUser.username,
@@ -1028,7 +998,6 @@ export class PostgresStorage implements IStorage {
         };
       }
       
-      console.log(`❌ No user found with email "${email}"`);
       return undefined;
       
     } catch (error) {
@@ -1039,7 +1008,6 @@ export class PostgresStorage implements IStorage {
 
   async createUser(user: typeof users.$inferInsert): Promise<User> {
     try {
-      console.log(`� FIXED PostgreSQL createUser using RAW SQL`);
       
       const hashedPassword = await bcrypt.hash(user.password, 12);
       const userId = randomUUID();
@@ -1059,9 +1027,6 @@ export class PostgresStorage implements IStorage {
         ) RETURNING *
       `);
       
-      console.log(`✅ RAW SQL createUser successful for ${user.username}`);
-      console.log(`🔍 Raw result structure:`, result);
-      
       // Handle different result structures between PostgreSQL drivers
       let newUser: any;
       if (result.rows && result.rows.length > 0) {
@@ -1073,8 +1038,6 @@ export class PostgresStorage implements IStorage {
       } else {
         throw new Error('No user returned from INSERT query');
       }
-      
-      console.log(`👤 New user from DB:`, newUser);
       return this.normalizeUserDates(newUser as User);
     } catch (error: any) {
       console.error('SQL error podczas tworzenia użytkownika:', error?.message || error);
@@ -1144,23 +1107,18 @@ export class PostgresStorage implements IStorage {
 
   async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
     try {
-      console.log(`🔄 PostgreSQL updateUser ${id} with:`, updates);
-      
       // Bezpieczna konwersja wszystkich dat dla PostgreSQL
       const dbUpdates: any = { ...updates };
       
       // Konwertuj pola dat na ISO stringi dla bazy
       if (dbUpdates.lastSeen) {
         dbUpdates.lastSeen = this.toISOString(dbUpdates.lastSeen);
-        console.log(`� Converted lastSeen to ISO: ${dbUpdates.lastSeen}`);
       }
       
       if (dbUpdates.createdAt) {
         dbUpdates.createdAt = this.toISOString(dbUpdates.createdAt);
         console.log(`📅 Converted createdAt to ISO: ${dbUpdates.createdAt}`);
       }
-      
-      console.log(`� Saving to PostgreSQL:`, dbUpdates);
       
       // ZASTĄPIONE RAW SQL - Drizzle ORM ma problemy z PostgreSQL timestamp
       const setParts: string[] = [];
@@ -1200,7 +1158,6 @@ export class PostgresStorage implements IStorage {
       
       if (updatedUser) {
         const normalizedUser = this.normalizeUserDates(updatedUser);
-        console.log(`✅ RAW SQL User ${id} updated, dates normalized`);
         return normalizedUser;
       }
       
@@ -1213,7 +1170,6 @@ export class PostgresStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     try {
-      console.log("🔥 RAW SQL getAllUsers");
       const result = await db.execute(sql`
         SELECT id, username, email, password, is_admin as "isAdmin", is_blocked as "isBlocked", 
                has_subscription as "hasSubscription", is_online as "isOnline",
@@ -1221,13 +1177,6 @@ export class PostgresStorage implements IStorage {
         FROM users 
         ORDER BY created_at DESC
       `);
-      
-      console.log(`🔍 getAllUsers PostgreSQL result:`, {
-        result: typeof result,
-        hasRows: !!result?.rows,
-        rowsLength: result?.rows?.length,
-        isArray: Array.isArray(result)
-      });
       
       // Handle different PostgreSQL response structures
       let usersData = [];
@@ -1268,8 +1217,6 @@ export class PostgresStorage implements IStorage {
   // Subscription methods
   async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
     try {
-      console.log(`🔥 RAW SQL createSubscription for user ${subscription.userId}`);
-      
       const subscriptionId = randomUUID();
       const now = new Date().toISOString(); // Direct ISO string
       
@@ -1284,8 +1231,6 @@ export class PostgresStorage implements IStorage {
         const daysToAdd = subscription.amount === 14.99 ? 1 : (subscription.amount === 49.99 ? 30 : 366);
         expiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
       }
-      
-      console.log(`💳 Creating subscription: amount=${subscription.amount}, expires=${expiresAt}`);
       
       // Use RAW SQL for subscription creation
       const result = await db.execute(sql`
@@ -1309,7 +1254,6 @@ export class PostgresStorage implements IStorage {
         throw new Error('No subscription returned from INSERT');
       }
       
-      console.log(`✅ RAW SQL createSubscription successful: ${subscriptionId}`);
       return this.normalizeSubscriptionDates(createdSub);
     } catch (error) {
       console.error('❌ RAW SQL createSubscription error:', error);
@@ -1319,7 +1263,6 @@ export class PostgresStorage implements IStorage {
 
   async getUserSubscriptions(userId: string): Promise<Subscription[]> {
     try {
-      console.log(`🔥 RAW SQL getUserSubscriptions for: ${userId}`);
       const result = await db.execute(sql`
         SELECT id, user_id as "userId", amount, status, purchased_at, expires_at
         FROM subscriptions 
@@ -1526,7 +1469,6 @@ export class PostgresStorage implements IStorage {
 
   async getAllActiveChatSessions(): Promise<ChatSession[]> {
     try {
-      console.log("🔥 RAW SQL getAllActiveChatSessions");
       const result = await db.execute(sql`
         SELECT id, user_id as "userId", vehicle_info as "vehicleInfo", 
                status, created_at, last_activity 
@@ -1559,7 +1501,6 @@ export class PostgresStorage implements IStorage {
 
   async updateChatSession(id: string, updates: Partial<ChatSession>): Promise<ChatSession | undefined> {
     try {
-      console.log(`🔥 RAW SQL updateChatSession: ${id}`, updates);
       
       // Simple approach: handle common update patterns
       if (updates.status) {
@@ -1602,8 +1543,6 @@ export class PostgresStorage implements IStorage {
   // Message methods
   async createMessage(message: InsertMessage): Promise<Message> {
     try {
-      console.log(`� RAW SQL createMessage for session ${message.sessionId}`);
-      
       const messageId = randomUUID();
       const now = new Date().toISOString();
       
@@ -1640,7 +1579,6 @@ export class PostgresStorage implements IStorage {
         throw new Error('No message returned from INSERT');
       }
       
-      console.log(`✅ RAW SQL message created successfully: ${messageId}`);
       return createdMessage as Message;
     } catch (error) {
       console.error(`❌ RAW SQL createMessage error:`, error);
@@ -1650,7 +1588,6 @@ export class PostgresStorage implements IStorage {
 
   async getSessionMessages(sessionId: string): Promise<(Message & { attachments: Attachment[] })[]> {
     try {
-      console.log(`🔥 RAW SQL getSessionMessages for session: ${sessionId}`);
       const result = await db.execute(sql`
         SELECT id, session_id as "sessionId", sender_id as "senderId", 
                sender_type as "senderType", content, created_at 
@@ -1696,7 +1633,6 @@ export class PostgresStorage implements IStorage {
 
   async getAllUnreadMessages(): Promise<Message[]> {
     try {
-      console.log(`🔥 RAW SQL getAllUnreadMessages`);
       const result = await db.execute(sql`
         SELECT id, session_id as "sessionId", sender_id as "senderId", 
                sender_type as "senderType", content, is_read as "isRead", 
@@ -1713,8 +1649,6 @@ export class PostgresStorage implements IStorage {
       } else if (Array.isArray(result)) {
         messagesData = result;
       }
-      
-      console.log(`✅ Found ${messagesData.length} unread messages`);
       
       return messagesData.map((rawMsg: any) => ({
         id: rawMsg.id,
@@ -1758,8 +1692,6 @@ export class PostgresStorage implements IStorage {
         messagesData = result;
       }
       
-      console.log(`✅ Found ${messagesData.length} recent messages`);
-      
       return messagesData.map((rawMsg: any) => ({
         id: rawMsg.id,
         sessionId: rawMsg.sessionId,
@@ -1778,9 +1710,6 @@ export class PostgresStorage implements IStorage {
   // Attachment methods
   async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
     try {
-      const messageInfo = attachment.messageId ? `for message ${attachment.messageId}` : 'for admin upload (no message)';
-      console.log(`🔥 RAW SQL createAttachment ${messageInfo}`);
-      
       const attachmentId = randomUUID();
       const now = new Date().toISOString();
       
@@ -1840,8 +1769,6 @@ export class PostgresStorage implements IStorage {
 
   async getMessageAttachments(messageId: string): Promise<Attachment[]> {
     try {
-      console.log(`🔥 RAW SQL getMessageAttachments for message ${messageId}`);
-      
       const result = await db.execute(sql`
         SELECT 
           id, message_id as "messageId", file_name as "fileName", 
@@ -1860,8 +1787,6 @@ export class PostgresStorage implements IStorage {
       } else if (Array.isArray(result)) {
         rows = result;
       }
-      
-      console.log(`✅ Found ${rows.length} attachments for message ${messageId}`);
       
       return rows.map((row: any) => ({
         id: row.id,
