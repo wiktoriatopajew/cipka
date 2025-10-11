@@ -209,7 +209,9 @@ if (process.env.NODE_ENV === 'production') {
           "https://js.stripe.com",
           "https://www.googletagmanager.com",
           "https://connect.facebook.net",
-          "https://www.google-analytics.com"
+          "https://www.google-analytics.com",
+          "https://www.paypal.com",
+          "https://www.sandbox.paypal.com"
         ],
         styleSrc: [
           "'self'", 
@@ -225,11 +227,20 @@ if (process.env.NODE_ENV === 'production') {
           "'self'", 
           "https://api.stripe.com",
           "https://www.google-analytics.com",
-          "https://analytics.google.com"
+          "https://analytics.google.com",
+          "https://api.paypal.com",
+          "https://api.sandbox.paypal.com",
+          "https://www.paypal.com",
+          "https://www.sandbox.paypal.com"
         ],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'", "data:"],
-        frameSrc: ["https://js.stripe.com", "https://hooks.stripe.com"],
+        frameSrc: [
+          "https://js.stripe.com", 
+          "https://hooks.stripe.com",
+          "https://www.paypal.com",
+          "https://www.sandbox.paypal.com"
+        ],
         frameAncestors: ["'none'"]
       }
     }
