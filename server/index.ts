@@ -241,6 +241,13 @@ if (process.env.NODE_ENV === 'production') {
           "https://www.paypal.com",
           "https://www.sandbox.paypal.com"
         ],
+        formAction: [
+          "'self'",
+          "https://www.paypal.com",
+          "https://www.sandbox.paypal.com",
+          "https://api.paypal.com",
+          "https://api.sandbox.paypal.com"
+        ],
         frameAncestors: ["'none'"]
       }
     }
