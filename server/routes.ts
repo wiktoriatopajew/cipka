@@ -270,13 +270,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await capturePaypalOrder(req, res);
   });
 
-  // Get Stripe public key for frontend
-  app.get("/api/stripe-config", (req, res) => {
-    const publicKey = process.env.VITE_STRIPE_PUBLIC_KEY;
-    if (!publicKey) {
+  // Get Stripe public key for frontend - PRIORITIZE .env over database
+  app.get("/api/stripe-config", async (req, res) => {
+    try {
+      // PRIORITY 1: Environment variable (.env file) - LIVE KEYS
+      const envPublicKey = process.env.VITE_STRIPE_PUBLIC_KEY;
+      if (envPublicKey) {
+        console.log('🔥 Using Stripe PUBLIC from .env (prioritized)');
+        return res.json({ publicKey: envPublicKey, publishableKey: envPublicKey });
+      }
+      
+      // PRIORITY 2: Database fallback (might have old test keys)
+      const config = await storage.getAppConfig();
+      const dbPublicKey = config?.stripePublishableKey;
+      
+      if (dbPublicKey) {
+        console.log('⚠️ Using Stripe PUBLIC from database (fallback)');
+        return res.json({ publicKey: dbPublicKey, publishableKey: dbPublicKey });
+      }
+      
+      console.log('❌ No Stripe public keys found');
+      return res.status(503).json({ error: "Stripe not configured" });
+    } catch (error) {
+      console.error("Error getting Stripe config:", error);
+      const fallbackKey = process.env.VITE_STRIPE_PUBLIC_KEY;
+      if (fallbackKey) {
+        return res.json({ publicKey: fallbackKey, publishableKey: fallbackKey });
+      }
       return res.status(503).json({ error: "Stripe not configured" });
     }
-    res.json({ publicKey });
   });
 
   // Get PayPal client ID for frontend
@@ -2646,8 +2668,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stripe configuration endpoint (public key only)
-  app.get("/api/stripe-config", async (req, res) => {
+  // Stripe configuration endpoint (database priority - DEPRECATED)
+  app.get("/api/stripe-config-db", async (req, res) => {
     try {
       const config = await storage.getAppConfig();
       res.json({ 
