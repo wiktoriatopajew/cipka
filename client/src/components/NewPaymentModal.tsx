@@ -97,6 +97,9 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
             setPaymentId(data.paymentId);
             setEmail(data.email || '');
             
+            // CRITICAL: Set payment method to PayPal!
+            setPaymentMethod("paypal");
+            
             // Set plan based on amount
             let detectedPlan: 'basic' | 'professional' | 'expert' = 'basic';
             if (data.amount >= 39.99) detectedPlan = 'expert';
@@ -415,12 +418,23 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
       return;
     }
 
+    const finalPaymentMethod = paymentMethod === "card" ? "stripe" : "paypal";
+    
+    console.log('🔄 Starting PayPal account creation:', {
+      username,
+      email: email ? email.substring(0, 3) + '***' : 'none',
+      paymentId,
+      paymentMethodState: paymentMethod,
+      finalPaymentMethod,
+      referralCode: userInputReferralCode || 'none'
+    });
+
     createAccountMutation.mutate({
       username,
       email,
       password,
       paymentId,
-      paymentMethod: paymentMethod === "card" ? "stripe" : "paypal",
+      paymentMethod: finalPaymentMethod,
       referralCode: userInputReferralCode
     });
   };
