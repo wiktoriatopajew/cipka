@@ -16,6 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal-wrapper";
 import { stripe, getStripeInstance } from "./index";
+import { generateSitemap, generateRobots } from "./sitemap";
 
 // Track last notification time for each session (for 15-minute alerts)
 const sessionNotificationTimestamps: Map<string, number> = new Map();
@@ -3347,6 +3348,10 @@ Test sent at: ${new Date().toLocaleString()}
       res.status(500).json({ error: "Internal server error" });
     }
   });
+
+  // SEO routes - Sitemap and Robots.txt
+  app.get("/sitemap.xml", generateSitemap);
+  app.get("/robots.txt", generateRobots);
 
   const httpServer = createServer(app);
 
