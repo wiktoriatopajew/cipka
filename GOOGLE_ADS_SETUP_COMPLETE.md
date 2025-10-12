@@ -16,9 +16,9 @@ Your AutoMentor project now has **complete Google Ads conversion tracking** with
    - ✅ Triggers on subscription renewals
    - ✅ Includes transaction ID, value, currency, and item details
 
-3. **Signup Conversion Tracking**  
-   - ✅ Triggers when new users create accounts
-   - ✅ Includes email information
+3. **User Registration Tracking**  
+   - ℹ️ Registration only happens after purchase (no separate signup tracking needed)
+   - ✅ Purchase conversion includes the complete user acquisition
 
 4. **Additional Event Tracking**
    - ✅ `begin_checkout` when payment modal opens

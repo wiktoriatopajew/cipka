@@ -14,7 +14,7 @@ INSERT INTO google_ads_config (
 ) VALUES (
   'AW-17646488974',
   'purchase_conversion',
-  'signup_conversion', 
+  NULL, -- Signup tracking not needed since registration only happens after purchase
   true,
   NOW()
 );

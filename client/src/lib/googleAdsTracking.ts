@@ -57,11 +57,11 @@ export class GoogleAdsConversions {
   }
 
   /**
-   * Check if tracking is enabled and config is valid
+   * Check if tracking is enabled and config is valid for purchase tracking
    */
   private static async isTrackingEnabled(): Promise<boolean> {
     const config = await this.loadConfig();
-    return config.enabled && !!config.conversionId && !!config.purchaseLabel && !!config.signupLabel;
+    return config.enabled && !!config.conversionId && !!config.purchaseLabel;
   }
 
   /**

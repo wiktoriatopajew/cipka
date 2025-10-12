@@ -2445,9 +2445,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const config = await storage.getGoogleAdsConfig();
       res.json(config || {
-        conversionId: 'AW-CONVERSION_ID',
-        purchaseLabel: 'PURCHASE_CONVERSION_LABEL',
-        signupLabel: 'SIGNUP_CONVERSION_LABEL',
+        conversionId: 'AW-17646488974',
+        purchaseLabel: 'purchase_conversion',
+        signupLabel: null, // Optional since registration only happens after purchase
         enabled: false
       });
     } catch (error) {
@@ -2460,9 +2460,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { conversionId, purchaseLabel, signupLabel, enabled } = req.body;
       
-      // Validate required fields
-      if (!conversionId || !purchaseLabel || !signupLabel) {
-        return res.status(400).json({ error: "All fields are required" });
+      // Validate required fields (signup label is optional since registration only happens after purchase)
+      if (!conversionId || !purchaseLabel) {
+        return res.status(400).json({ error: "Conversion ID and Purchase Label are required" });
       }
 
       // Validate conversion ID format

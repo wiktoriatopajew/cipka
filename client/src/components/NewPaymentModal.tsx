@@ -223,7 +223,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
       const planDetails = getPlanDetails(currentSelectedPlan);
       const price = getPlanPrice(currentSelectedPlan, !!referralCode);
       
-      // Track successful conversion
+      // Track successful purchase conversion (includes new user registration)
       GoogleAdsConversions.trackPurchase({
         transactionId: paymentId || data.sessionId,
         value: price,
@@ -236,8 +236,6 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           price: price
         }]
       });
-
-      GoogleAdsConversions.trackSignup(email);
       
       // Clean up PayPal payment data from localStorage
       localStorage.removeItem('payment-data');
