@@ -123,6 +123,13 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
   const createAccountMutation = useMutation({
     mutationFn: async (accountData: { username: string; email: string; password: string; paymentId: string; paymentMethod: string; referralCode?: string }) => {
       try {
+        console.log('🔄 Step 1: Creating user account...', { 
+          username: accountData.username, 
+          email: accountData.email,
+          paymentMethod: accountData.paymentMethod,
+          hasReferralCode: !!accountData.referralCode
+        });
+
         // Create user account
         const userResponse = await apiRequest("POST", "/api/users/register", {
           username: accountData.username,
@@ -130,7 +137,21 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           password: accountData.password,
           referralCode: accountData.referralCode
         });
+        
+        if (!userResponse.ok) {
+          const errorData = await userResponse.json();
+          console.error('❌ User registration failed:', errorData);
+          throw new Error(errorData.error || 'Failed to create user account');
+        }
+        
         const user = await userResponse.json();
+        console.log('✅ Step 1 complete: User created', { userId: user.id, username: user.username });
+
+        // Small delay to ensure session is properly established
+        console.log('⏳ Waiting for session to be established...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log('🔄 Step 2: Verifying payment and creating subscription...');
         
         // Verify payment and create subscription
         const verifyPayload = accountData.paymentMethod === "stripe" 
@@ -138,17 +159,35 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           : { paypalOrderId: accountData.paymentId, paymentMethod: "paypal", amount: currentPrice };
           
         const subscriptionResponse = await apiRequest("POST", "/api/verify-payment-and-subscribe", verifyPayload);
+        
+        if (!subscriptionResponse.ok) {
+          const errorData = await subscriptionResponse.json();
+          console.error('❌ Payment verification failed:', errorData);
+          throw new Error(errorData.error || 'Failed to verify payment');
+        }
+        
         await subscriptionResponse.json();
+        console.log('✅ Step 2 complete: Payment verified and subscription created');
+
+        console.log('🔄 Step 3: Creating chat session...');
         
         // Create chat session
         const sessionResponse = await apiRequest("POST", "/api/chat/sessions", {
           vehicleInfo: vehicleInfo || {}
         });
+        
+        if (!sessionResponse.ok) {
+          const errorData = await sessionResponse.json();
+          console.error('❌ Chat session creation failed:', errorData);
+          throw new Error(errorData.error || 'Failed to create chat session');
+        }
+        
         const session = await sessionResponse.json();
+        console.log('✅ Step 3 complete: Chat session created', { sessionId: session.id });
         
         return { user: user, sessionId: session.id };
       } catch (error) {
-        console.error('Mutation error:', error);
+        console.error('❌ PayPal account creation mutation error:', error);
         throw error;
       }
     },
@@ -194,10 +233,32 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
       onOpenChange(false);
     },
     onError: (error: any) => {
-      console.error('Account creation error:', error);
+      console.error('❌ PayPal account creation error:', error);
+      
+      // Extract meaningful error message
+      let errorMessage = "Please try again later";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Show specific error messages
+      if (errorMessage.includes('User already exists')) {
+        errorMessage = "Account with this email already exists. Please try logging in instead.";
+      } else if (errorMessage.includes('Invalid email')) {
+        errorMessage = "Please enter a valid email address.";
+      } else if (errorMessage.includes('Username')) {
+        errorMessage = "Username must be 3-20 characters and contain only letters, numbers, underscores, and hyphens.";
+      } else if (errorMessage.includes('Password')) {
+        errorMessage = "Password must be at least 6 characters long.";
+      } else if (errorMessage.includes('referral code')) {
+        errorMessage = "The referral code you entered is invalid.";
+      }
+      
       toast({
         title: "Account creation failed",
-        description: "Please try again later",
+        description: errorMessage,
         variant: "destructive",
       });
     },

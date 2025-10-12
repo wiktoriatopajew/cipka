@@ -1349,11 +1349,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Regenerate session to prevent session fixation and auto-login
       req.session.regenerate((err: any) => {
         if (err) {
+          console.error('❌ Session regeneration failed:', err);
           return res.status(500).json({ error: "Session regeneration failed" });
         }
         
         req.session.userId = user.id;
         req.session.isUser = true;
+        
+        console.log('✅ User registration successful:', {
+          userId: user.id,
+          username: user.username,
+          sessionId: req.session.id,
+          sessionUserId: req.session.userId
+        });
         
         // If user was referred, update referral progress after successful subscription
         if (referrerId) {
@@ -1605,10 +1613,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Verify payment and create subscription - SECURE
   app.post("/api/verify-payment-and-subscribe", requireAuth, async (req, res) => {
     try {
-      console.log('START verify-payment-and-subscribe', req.body, req.session);
+      console.log('🔄 START verify-payment-and-subscribe');
+      console.log('📝 Request body:', req.body);
+      console.log('🔐 Session data:', { 
+        sessionId: req.session?.id, 
+        userId: req.session?.userId, 
+        isUser: req.session?.isUser,
+        sessionExists: !!req.session
+      });
+      
       if (!req.session?.userId) {
-        console.log('Brak userId w sesji');
-        return res.status(401).json({ error: "Authentication required" });
+        console.log('❌ Brak userId w sesji - authentication failed');
+        console.log('📊 Session debug:', req.session);
+        return res.status(401).json({ 
+          error: "Authentication required", 
+          debug: "No user session found" 
+        });
       }
 
       // Check if user already has an active subscription (prevent duplicate payments)
@@ -1784,10 +1804,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateReferralProgress(user.referredBy, user.id);
         console.log(`Updated referral progress for referrer ${user.referredBy} due to new subscription by ${user.username}`);
       }
+      console.log('✅ Payment verification completed successfully');
       res.json(subscription);
     } catch (error: any) {
-      console.error("Payment verification error:", error, error?.stack);
-      res.status(500).json({ error: "Failed to verify payment and create subscription" });
+      console.error("❌ Payment verification error:", error);
+      console.error("❌ Error stack:", error?.stack);
+      console.error("❌ Error details:", {
+        message: error?.message,
+        name: error?.name,
+        code: error?.code
+      });
+      
+      // Return more specific error message
+      let errorMessage = "Failed to verify payment and create subscription";
+      if (error?.message?.includes('PayPal')) {
+        errorMessage = "PayPal payment verification failed";
+      } else if (error?.message?.includes('amount')) {
+        errorMessage = "Invalid payment amount";
+      } else if (error?.message?.includes('currency')) {
+        errorMessage = "Invalid payment currency";
+      }
+      
+      res.status(500).json({ 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      });
     }
   });
 
