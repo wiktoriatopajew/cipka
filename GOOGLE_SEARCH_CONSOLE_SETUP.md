@@ -6,13 +6,13 @@
 1. Idź na: https://search.google.com/search-console
 2. Kliknij **"+ Add Property"**
 3. Wybierz **"URL prefix"**
-4. Wpisz: `https://automentor-k5xe.onrender.com` (lub twoją domenę)
+4. Wpisz: `https://chatwithmechanic.com`
 
 ### **2. Weryfikacja Własności Strony**
 **Metoda A: Plik HTML (Rekomendowana)**
 1. Google poda plik do pobrania (np. `google123abc.html`)
 2. Umieść go w folderze `client/public/`
-3. Sprawdź dostęp: `https://twoja-domena.com/google123abc.html`
+3. Sprawdź dostęp: `https://chatwithmechanic.com/google123abc.html`
 4. Kliknij "Verify" w Google Search Console
 
 **Metoda B: META tag**
@@ -29,7 +29,7 @@ Po weryfikacji:
 
 ### **4. Dodanie Robots.txt**
 1. Sprawdź w GSC: **"Settings"** → **"robots.txt Tester"**
-2. Wpisz URL: `https://twoja-domena.com/robots.txt`
+2. Wpisz URL: `https://chatwithmechanic.com/robots.txt`
 3. Sprawdź czy się ładuje poprawnie
 
 ---
@@ -58,8 +58,8 @@ Po weryfikacji:
 ## 🚀 **Dostępne Endpointy**
 
 ### **Po wdrożeniu będą dostępne:**
-- `https://twoja-domena.com/sitemap.xml` - XML Sitemap
-- `https://twoja-domena.com/robots.txt` - Robots.txt
+- `https://chatwithmechanic.com/sitemap.xml` - XML Sitemap
+- `https://chatwithmechanic.com/robots.txt` - Robots.txt
 
 ### **Testowanie lokalnie:**
 - `http://localhost:3000/sitemap.xml`

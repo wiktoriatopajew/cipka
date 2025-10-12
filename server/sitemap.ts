@@ -2,7 +2,11 @@ import { Request, Response } from 'express';
 
 // Sitemap generator for AutoMentor
 export function generateSitemap(req: Request, res: Response) {
-  const baseUrl = req.protocol + '://' + req.get('host');
+  // Use custom domain if in production, otherwise use request host
+  const host = req.get('host');
+  const baseUrl = (host?.includes('render.com') || host?.includes('localhost')) 
+    ? req.protocol + '://' + req.get('host')
+    : 'https://chatwithmechanic.com';
   
   // Static pages
   const staticPages = [
@@ -76,7 +80,11 @@ ${staticPages.map(page => `  <url>
 
 // Robots.txt generator
 export function generateRobots(req: Request, res: Response) {
-  const baseUrl = req.protocol + '://' + req.get('host');
+  // Use custom domain if in production, otherwise use request host
+  const host = req.get('host');
+  const baseUrl = (host?.includes('render.com') || host?.includes('localhost')) 
+    ? req.protocol + '://' + req.get('host')
+    : 'https://chatwithmechanic.com';
   
   const robots = `User-agent: *
 Allow: /
