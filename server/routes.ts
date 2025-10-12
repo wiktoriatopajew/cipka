@@ -9,6 +9,7 @@ import path from "path";
 import fs from "fs";
 import { sendUserLoginNotification, sendFirstMessageNotification, sendChatActivityNotification, sendContactFormEmail } from "./email";
 import { fileURLToPath } from "url";
+import Logger from './logger';
 
 // ES modules equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -241,9 +242,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // PayPal API endpoints (with /api prefix for frontend)
   app.post("/api/paypal/create-order", async (req, res) => {
-    console.log('📞 /api/paypal/create-order endpoint hit');
-    console.log('Request body:', req.body);
-    console.log('Environment check:', {
+    Logger.payment('/api/paypal/create-order endpoint hit');
+    Logger.payment('Request body:', req.body);
+    Logger.payment('Environment check:', {
       hasPaypalClientId: !!process.env.PAYPAL_CLIENT_ID,
       hasPaypalSecret: !!process.env.PAYPAL_CLIENT_SECRET,
       nodeEnv: process.env.NODE_ENV
@@ -276,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get PayPal client ID for frontend
   app.get("/api/paypal-config", (req, res) => {
-    console.log('📞 PayPal Config Request - checking environment variables...');
+    Logger.payment('PayPal Config Request - checking environment variables...');
     
     // Check all possible PayPal env vars
     const allEnvVars = {
@@ -285,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       NODE_ENV: process.env.NODE_ENV
     };
     
-    console.log('🔍 Environment check:', {
+    Logger.payment('Environment check:', {
       hasPaypalClientId: !!process.env.PAYPAL_CLIENT_ID,
       hasVitePaypalClientId: !!process.env.VITE_PAYPAL_CLIENT_ID,
       nodeEnv: process.env.NODE_ENV,
@@ -297,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     process.env.VITE_PAYPAL_CLIENT_ID || 
                     'AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB';
     
-    console.log('✅ Returning PayPal config:', {
+    Logger.payment('Returning PayPal config:', {
       clientIdLength: clientId.length,
       clientIdPreview: clientId.substring(0, 20) + '...',
       mode: 'sandbox'
@@ -333,8 +334,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate amount from client request
       const { amount } = req.body;
       
-      console.log(`Payment intent request for amount: ${amount}`);
-      console.log(`Amount type: ${typeof amount}`);
+      Logger.payment(`Payment intent request for amount: ${amount}`);
+      Logger.payment(`Amount type: ${typeof amount}`);
       
       // Valid pricing tiers (including discounted prices for referrals)
       const validAmounts = [
@@ -343,14 +344,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       
       if (!amount || !validAmounts.includes(amount)) {
-        console.log(`Invalid amount requested: ${amount}`);
+        Logger.payment(`Invalid amount requested: ${amount}`);
         return res.status(400).json({ error: "Invalid amount" });
       }
       
       // Convert to cents for Stripe
       const SUBSCRIPTION_AMOUNT = Math.round(amount * 100);
       
-      console.log(`Creating payment intent for ${SUBSCRIPTION_AMOUNT} cents`);
+      Logger.payment(`Creating payment intent for ${SUBSCRIPTION_AMOUNT} cents`);
       
       const paymentIntent = await stripeInstance.paymentIntents.create({
         amount: SUBSCRIPTION_AMOUNT,
@@ -358,10 +359,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         automatic_payment_methods: { enabled: true },
       });
       
-      console.log(`Payment intent created: ${paymentIntent.id}`);
+      Logger.payment(`Payment intent created: ${paymentIntent.id}`);
       res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
-      console.error("Payment intent error:", error);
+      Logger.error("Payment intent error:", error);
       res
         .status(500)
         .json({ message: "Error creating payment intent: " + error.message });
@@ -501,12 +502,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin Authentication
   app.post("/api/admin/login", authRateLimit, async (req, res) => {
     try {
-      console.log("Admin login attempt:", req.body);
+      Logger.admin("Admin login attempt:", req.body);
       
       // Validate request body
       const result = loginSchema.safeParse(req.body);
       if (!result.success) {
-        console.log("Login schema validation failed:", result.error);
+        Logger.admin("Login schema validation failed:", result.error);
         return res.status(400).json({ 
           error: "Invalid login data", 
           details: result.error.issues 
@@ -514,33 +515,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { email, password } = result.data;
-      console.log("Attempting login for:", email);
+      Logger.admin("Attempting login for:", email);
 
       const user = await storage.verifyPassword(email, password);
-      console.log("User found:", user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : null);
+      Logger.admin("User found:", user ? { id: user.id, email: user.email, isAdmin: user.isAdmin } : null);
       
       if (!user || !user.isAdmin) {
-        console.log("Admin login failed - invalid credentials or not admin");
+        Logger.admin("Admin login failed - invalid credentials or not admin");
         return res.status(401).json({ error: "Invalid admin credentials" });
       }
 
-      console.log("Admin verified, skipping status update for SQLite compatibility...");
+      Logger.admin("Admin verified, skipping status update for SQLite compatibility...");
       // Skip updateUser entirely for SQLite to avoid PostgreSQL timestamp issues
 
-      console.log("Regenerating session...");
+      Logger.admin("Regenerating session...");
       // Regenerate session to prevent session fixation
       req.session.regenerate((err: any) => {
         if (err) {
-          console.error("Session regeneration error:", err);
+          Logger.error("Session regeneration error:", err);
           return res.status(500).json({ error: "Session regeneration failed" });
         }
         
-        console.log("Session regenerated, storing admin data...");
+        Logger.admin("Session regenerated, storing admin data...");
         // Store admin session
         req.session.adminId = user.id;
         req.session.isAdmin = true;
 
-        console.log("Admin login successful");
+        Logger.admin("Admin login successful");
         res.json({ 
           success: true, 
           admin: { 
@@ -871,10 +872,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       //   isOnline: true,
       //   lastSeen: new Date().toISOString()
       // });
-      console.log("Admin heartbeat - skipping status update for SQLite compatibility...");
+      Logger.admin("Admin heartbeat - skipping status update for SQLite compatibility...");
       res.json({ success: true });
     } catch (error) {
-      console.error("Heartbeat error:", error);
+      Logger.error("Heartbeat error:", error);
       res.status(500).json({ error: "Heartbeat failed" });
     }
   });
@@ -1095,16 +1096,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Real-time data endpoint
   app.get("/api/admin/live-data", requireAdmin, async (req, res) => {
     try {
-      console.log("Live-data: Fetching unread messages...");
+      Logger.liveData("Fetching unread messages...");
       const unreadMessages = await storage.getAllUnreadMessages();
       
-      console.log("Live-data: Fetching active sessions...");
+      Logger.liveData("Fetching active sessions...");
       const activeSessions = await storage.getAllActiveChatSessions();
       
-      console.log("Live-data: Fetching all users...");
+      Logger.liveData("Fetching all users...");
       const allUsers = await storage.getAllUsers();
       
-      console.log("Live-data: Filtering online users...");
+      Logger.liveData("Filtering online users...");
       const onlineUsers = allUsers.filter(u => u.isOnline && !u.isAdmin);
 
       res.json({
@@ -1114,7 +1115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastUpdate: new Date().toISOString()
       });
     } catch (error) {
-      console.error("Live-data error:", error);
+      Logger.error("Live-data error:", error);
       res.status(500).json({ error: "Failed to fetch live data" });
     }
   });

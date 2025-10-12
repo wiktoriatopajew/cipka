@@ -17,6 +17,7 @@ import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 import { db, dbReady } from "./db";
 import { eq, and, desc, lt, gte, lte, sql } from "drizzle-orm";
+import Logger from './logger';
 
 export interface IStorage {
   // User methods
@@ -1259,7 +1260,7 @@ export class PostgresStorage implements IStorage {
 
   async getAllActiveSubscriptions(): Promise<Subscription[]> {
     try {
-      console.log(`🔥 RAW SQL getAllActiveSubscriptions`);
+      Logger.sql(`RAW SQL getAllActiveSubscriptions`);
       const result = await db.execute(sql`
         SELECT id, user_id as "userId", amount, status, 
                purchased_at, expires_at 
@@ -1316,7 +1317,7 @@ export class PostgresStorage implements IStorage {
   // Chat session methods
   async createChatSession(session: InsertChatSession): Promise<ChatSession> {
     try {
-      console.log('🔥 RAW SQL createChatSession for user:', session.userId);
+      Logger.sql('RAW SQL createChatSession for user:', session.userId);
       
       const sessionId = randomUUID();
       const now = new Date().toISOString(); // Direct ISO string
@@ -1324,7 +1325,7 @@ export class PostgresStorage implements IStorage {
         ? session.vehicleInfo 
         : JSON.stringify(session.vehicleInfo);
       
-      console.log('🚗 Creating chat session with RAW SQL:', {
+      Logger.sql('Creating chat session with RAW SQL:', {
         sessionId,
         userId: session.userId,
         vehicleInfo: vehicleInfoStr,
@@ -1354,10 +1355,10 @@ export class PostgresStorage implements IStorage {
         throw new Error('No chat session returned from INSERT');
       }
       
-      console.log('✅ RAW SQL chat session created:', sessionId);
+      Logger.sql('RAW SQL chat session created:', sessionId);
       return createdSession as ChatSession;
     } catch (error) {
-      console.error('❌ RAW SQL createChatSession error:', error);
+      Logger.error('RAW SQL createChatSession error:', error);
       throw error;
     }
   }

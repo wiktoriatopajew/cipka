@@ -9,6 +9,7 @@ import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+import Logger from './logger';
 import fs from "fs";
 import Stripe from "stripe";
 
@@ -292,7 +293,7 @@ app.use(session({
 // Debug session middleware
 app.use((req, res, next) => {
   if (req.path.includes('/api/')) {
-    console.log(`🔐 Session check for ${req.method} ${req.path}:`, {
+    Logger.session(`Session check for ${req.method} ${req.path}:`, {
       hasSession: !!req.session,
       userId: req.session?.userId,
       sessionID: req.sessionID
@@ -326,7 +327,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      Logger.api(logLine);
     }
   });
 

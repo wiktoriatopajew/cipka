@@ -30,6 +30,21 @@ services:
         sync: false
       - key: SMTP_PASS
         sync: false
+      # Logger Configuration - Production Minimal
+      - key: LOG_LEVEL
+        value: warn
+      - key: ENABLE_SESSION_LOGS
+        value: false
+      - key: ENABLE_API_LOGS
+        value: false
+      - key: ENABLE_SQL_LOGS
+        value: false
+      - key: ENABLE_ADMIN_LOGS
+        value: true
+      - key: ENABLE_LIVE_DATA_LOGS
+        value: false
+      - key: ENABLE_PAYMENT_LOGS
+        value: true
     healthCheckPath: /api/health
 
 databases:
