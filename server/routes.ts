@@ -995,6 +995,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user (admin only)
+  app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      Logger.admin(`🗑️ Admin ${req.user?.username} attempting to delete user: ${userId}`);
+      
+      const result = await storage.deleteUser(userId);
+      
+      if (result.success) {
+        Logger.admin(`✅ User deletion successful: ${result.message}`);
+        res.json(result);
+      } else {
+        Logger.admin(`❌ User deletion failed: ${result.message}`);
+        res.status(400).json({ error: result.message });
+      }
+    } catch (error) {
+      Logger.admin(`❌ Delete user error: ${error}`);
+      console.error('Delete user error:', error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
   // Chat Management
   app.get("/api/admin/chats", requireAdmin, async (req, res) => {
     try {

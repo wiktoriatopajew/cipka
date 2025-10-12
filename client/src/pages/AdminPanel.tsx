@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { 
   Users, MessageCircle, DollarSign, Activity, Send, 
-  Eye, Clock, Shield, AlertCircle, CheckCircle2, Image, Video, FileText, Paperclip, Ban, Play, Search, X, Plus, BarChart3, FileEdit
+  Eye, Clock, Shield, AlertCircle, CheckCircle2, Image, Video, FileText, Paperclip, Ban, Play, Search, X, Plus, BarChart3, FileEdit, Trash2
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -79,6 +79,7 @@ export default function AdminPanel() {
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [addingDaysUserId, setAddingDaysUserId] = useState<string | null>(null);
   const [daysToAdd, setDaysToAdd] = useState<string>("");
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -338,6 +339,30 @@ export default function AdminPanel() {
     },
   });
 
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setDeletingUserId(null);
+      refetchDashboard();
+      toast({
+        title: "✅ Użytkownik usunięty",
+        description: data.message || "Użytkownik i wszystkie powiązane dane zostały usunięte",
+      });
+    },
+    onError: (error: any) => {
+      setDeletingUserId(null);
+      toast({
+        title: "❌ Błąd usuwania",
+        description: error.message || "Nie udało się usunąć użytkownika",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (credentials.email && credentials.password) {
@@ -361,6 +386,36 @@ export default function AdminPanel() {
   const handleCancelAddDays = () => {
     setAddingDaysUserId(null);
     setDaysToAdd("");
+  };
+
+  const handleDeleteUser = (userId: string, username: string) => {
+    const confirmed = window.confirm(
+      `⚠️ UWAGA: Czy na pewno chcesz usunąć użytkownika "${username}"?\n\n` +
+      `To działanie:\n` +
+      `• Usunie użytkownika PERMANENTNIE\n` +
+      `• Usunie wszystkie jego wiadomości\n` +
+      `• Usunie wszystkie sesje czatu\n` +
+      `• Usunie subskrypcje\n` +
+      `• NIE MOŻNA TEGO COFNĄĆ!\n\n` +
+      `Wpisz "USUŃ" aby potwierdzić:`
+    );
+    
+    if (confirmed) {
+      // Dodatkowe potwierdzenie dla bezpieczeństwa
+      const secondConfirm = window.prompt(
+        `Wpisz "USUŃ" aby potwierdzić usunięcie użytkownika ${username}:`
+      );
+      
+      if (secondConfirm === "USUŃ") {
+        setDeletingUserId(userId);
+        deleteUserMutation.mutate(userId);
+      } else {
+        toast({
+          title: "Usuwanie anulowane",
+          description: "Użytkownik nie został usunięty",
+        });
+      }
+    }
   };
 
   const handleSendMessage = () => {
@@ -1274,6 +1329,7 @@ export default function AdminPanel() {
                                 userId: user.id, 
                                 isBlocked: !user.isBlocked 
                               })}
+                              disabled={blockUserMutation.isPending}
                             >
                               {user.isBlocked ? (
                                 <>
@@ -1287,6 +1343,30 @@ export default function AdminPanel() {
                                 </>
                               )}
                             </Button>
+
+                            {/* Delete user button - Only show if not admin */}
+                            {!user.isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteUser(user.id, user.username)}
+                                disabled={deleteUserMutation.isPending || deletingUserId === user.id}
+                                className="bg-red-600 hover:bg-red-700"
+                                title="⚠️ UWAGA: Usuwa użytkownika PERMANENTNIE wraz z wszystkimi danymi!"
+                              >
+                                {deletingUserId === user.id ? (
+                                  <>
+                                    <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                    Usuwanie...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Usuń
+                                  </>
+                                )}
+                              </Button>
+                            )}
                             
                             {/* Add subscription days control */}
                             {addingDaysUserId === user.id ? (

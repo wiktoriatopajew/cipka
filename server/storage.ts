@@ -26,6 +26,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: typeof users.$inferInsert): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<{ success: boolean; message: string }>;
   getAllUsers(): Promise<User[]>;
   verifyPassword(email: string, password: string): Promise<User | null>;
   
@@ -190,6 +191,47 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async deleteUser(id: string): Promise<{ success: boolean; message: string }> {
+    const user = this.users.get(id);
+    if (!user) {
+      return { success: false, message: "User not found" };
+    }
+    
+    if (user.isAdmin) {
+      return { success: false, message: "Cannot delete admin user" };
+    }
+    
+    // Usuń powiązane dane z MemStorage
+    // Usuń subskrypcje
+    for (const [subId, sub] of this.subscriptions.entries()) {
+      if (sub.userId === id) {
+        this.subscriptions.delete(subId);
+      }
+    }
+    
+    // Usuń sesje czatu
+    for (const [sessionId, session] of this.chatSessions.entries()) {
+      if (session.userId === id) {
+        this.chatSessions.delete(sessionId);
+      }
+    }
+    
+    // Usuń wiadomości
+    for (const [msgId, msg] of this.messages.entries()) {
+      if (msg.userId === id) {
+        this.messages.delete(msgId);
+      }
+    }
+    
+    // Usuń użytkownika
+    this.users.delete(id);
+    
+    return { 
+      success: true, 
+      message: `User ${user.username} deleted successfully` 
+    };
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -1131,6 +1173,85 @@ export class PostgresStorage implements IStorage {
     } catch (error) {
       console.error(`❌ PostgreSQL updateUser error for ${id}:`, error);
       throw error;
+    }
+  }
+
+  async deleteUser(id: string): Promise<{ success: boolean; message: string }> {
+    try {
+      Logger.admin(`🗑️ Starting user deletion: ${id}`);
+      
+      // 1. Sprawdź czy użytkownik istnieje
+      const user = await this.getUser(id);
+      if (!user) {
+        return { success: false, message: "User not found" };
+      }
+      
+      // 2. Sprawdź czy to nie admin (zabezpieczenie)
+      if (user.isAdmin) {
+        Logger.admin(`❌ Attempt to delete admin user: ${user.username}`);
+        return { success: false, message: "Cannot delete admin user" };
+      }
+      
+      Logger.admin(`🗑️ Deleting user: ${user.username} (${user.email})`);
+      
+      // 3. Usuń powiązane dane (w odpowiedniej kolejności aby uniknąć FK constraints)
+      
+      // a) Usuń wiadomości użytkownika
+      await db.execute(sql`DELETE FROM messages WHERE user_id = ${id}`);
+      Logger.admin(`✅ Deleted messages for user ${id}`);
+      
+      // b) Usuń sesje czatu użytkownika
+      await db.execute(sql`DELETE FROM chat_sessions WHERE user_id = ${id}`);
+      Logger.admin(`✅ Deleted chat sessions for user ${id}`);
+      
+      // c) Usuń subskrypcje użytkownika
+      await db.execute(sql`DELETE FROM user_subscriptions WHERE user_id = ${id}`);
+      Logger.admin(`✅ Deleted subscriptions for user ${id}`);
+      
+      // d) Usuń sesje logowania użytkownika
+      try {
+        await db.execute(sql`DELETE FROM sessions WHERE user_id = ${id}`);
+        Logger.admin(`✅ Deleted login sessions for user ${id}`);
+      } catch (e) {
+        // Tabela sessions może nie istnieć - nie krytyczne
+        Logger.admin(`⚠️ Sessions table not found or empty for user ${id}`);
+      }
+      
+      // e) Usuń nagrody referralowe powiązane z użytkownikiem
+      try {
+        await db.execute(sql`DELETE FROM referral_rewards WHERE user_id = ${id} OR referrer_id = ${id}`);
+        Logger.admin(`✅ Deleted referral rewards for user ${id}`);
+      } catch (e) {
+        Logger.admin(`⚠️ Referral rewards cleanup completed for user ${id}`);
+      }
+      
+      // 4. Na końcu usuń samego użytkownika
+      const deleteResult = await db.execute(sql`
+        DELETE FROM users WHERE id = ${id} RETURNING username, email
+      `);
+      
+      let deletedUser: any;
+      if (deleteResult.rows && deleteResult.rows.length > 0) {
+        deletedUser = deleteResult.rows[0];
+      } else if (Array.isArray(deleteResult) && deleteResult.length > 0) {
+        deletedUser = deleteResult[0];
+      }
+      
+      if (deletedUser) {
+        Logger.admin(`✅ Successfully deleted user: ${deletedUser.username} (${deletedUser.email})`);
+        return { 
+          success: true, 
+          message: `User ${deletedUser.username} and all related data deleted successfully` 
+        };
+      } else {
+        Logger.admin(`❌ User deletion failed - user may have been already deleted`);
+        return { success: false, message: "Failed to delete user" };
+      }
+      
+    } catch (error) {
+      Logger.admin(`❌ Error deleting user ${id}: ${error}`);
+      console.error(`❌ PostgreSQL deleteUser error for ${id}:`, error);
+      return { success: false, message: `Failed to delete user: ${error}` };
     }
   }
 
