@@ -91,7 +91,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           console.log('🔍 Found payment data in localStorage:', data);
           
           if (data.paymentMethod === 'paypal' && data.paymentId) {
-            console.log('💰 PayPal payment detected, setting up account creation...');
+            console.log('💰 PayPal payment detected');
             
             // Set payment details
             setPaymentId(data.paymentId);
@@ -106,14 +106,33 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
             else if (data.amount >= 24.99) detectedPlan = 'professional';
             setCurrentSelectedPlan(detectedPlan);
             
-            // Skip to account creation step
-            setStep("account");
-            
-            toast({
-              title: "PayPal Payment Complete!",
-              description: "Please create your account to complete the process.",
-              duration: 4000,
-            });
+            // Check if user is logged in - different flow
+            if (isLoggedIn && user) {
+              console.log('✅ User already logged in - renewing subscription directly');
+              
+              // For existing users - directly renew subscription
+              renewSubscriptionMutation.mutate({
+                paymentId: data.paymentId,
+                paymentMethod: "paypal"
+              });
+              
+              toast({
+                title: "PayPal Payment Complete!",
+                description: "Renewing your subscription...",
+                duration: 3000,
+              });
+            } else {
+              console.log('🆕 New user - setting up account creation');
+              
+              // For new users - go to account creation
+              setStep("account");
+              
+              toast({
+                title: "PayPal Payment Complete!",
+                description: "Please create your account to complete the process.",
+                duration: 4000,
+              });
+            }
           }
         } catch (error) {
           console.error('❌ Error parsing payment data:', error);
@@ -305,6 +324,10 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
           price: price
         }]
       });
+      
+      // Clean up PayPal payment data from localStorage
+      localStorage.removeItem('payment-data');
+      console.log('🧹 Cleaned up PayPal payment data after successful renewal');
       
       toast({
         title: "Subscription Renewed! 🎉",
