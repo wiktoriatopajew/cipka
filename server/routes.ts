@@ -1646,7 +1646,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { paymentIntentId, paypalOrderId, paymentMethod, amount } = req.body;
-      console.log('Dane płatności:', { paymentIntentId, paypalOrderId, paymentMethod, amount });
+      console.log('🔍 RAW request body:', req.body);
+      console.log('🔍 Extracted payment data:', { 
+        paymentIntentId, 
+        paypalOrderId, 
+        paymentMethod, 
+        amount,
+        hasPaymentIntentId: !!paymentIntentId,
+        hasPaypalOrderId: !!paypalOrderId
+      });
 
       // Validate amount (including discounted prices for referral codes)
       const validAmounts = [
@@ -1676,6 +1684,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
 
+      console.log('🔄 Determining payment method logic...');
+      console.log('Payment method check:', {
+        isStripe: paymentMethod === "stripe",
+        hasPaymentIntentId: !!paymentIntentId,
+        isPaypal: paymentMethod === "paypal", 
+        hasPaypalOrderId: !!paypalOrderId
+      });
+
       if (paymentMethod === "stripe" && paymentIntentId) {
         if (!stripe) {
           console.log('Stripe nie skonfigurowany');
@@ -1699,6 +1715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           paymentVerified = true;
         }
       } else if (paymentMethod === "paypal" && paypalOrderId) {
+        console.log('✅ PayPal payment branch selected');
         console.log('PayPal orderId:', paypalOrderId);
         
         try {
@@ -1773,7 +1790,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           paymentVerified = true;
         }
       } else {
-        console.log('Niepoprawna metoda płatności lub brak ID');
+        console.log('❌ Niepoprawna metoda płatności lub brak ID');
+        console.log('❌ Payment method validation failed:', {
+          paymentMethod,
+          paymentIntentId,
+          paypalOrderId,
+          expectedStripe: paymentMethod === "stripe" && paymentIntentId,
+          expectedPaypal: paymentMethod === "paypal" && paypalOrderId
+        });
         return res.status(400).json({ error: "Invalid payment method or missing payment ID" });
       }
 
