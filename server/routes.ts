@@ -2509,47 +2509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // TEMPORARY: Public endpoint to update conversion label (remove after use)
-  app.post("/api/update-conversion-label", async (req, res) => {
-    try {
-      const { conversionLabel, secret } = req.body;
-      
-      // Simple security check
-      if (secret !== 'update-conversion-32fyCMne66sbEI6bwN5B') {
-        return res.status(403).json({ error: "Invalid secret" });
-      }
-      
-      if (conversionLabel !== '32fyCMne66sbEI6bwN5B') {
-        return res.status(400).json({ error: "Invalid conversion label" });
-      }
-      
-      const result = await storage.updateGoogleAdsConfig({
-        conversionId: 'AW-17646488974',
-        purchaseLabel: '32fyCMne66sbEI6bwN5B',
-        signupLabel: null,
-        enabled: true
-      });
-      
-      if (result.success) {
-        // Verify the update
-        const config = await storage.getGoogleAdsConfig();
-        res.json({
-          success: true,
-          message: 'Conversion label updated successfully',
-          config: {
-            conversionId: config?.conversionId,
-            purchaseLabel: config?.purchaseLabel,
-            enabled: config?.enabled
-          }
-        });
-      } else {
-        res.status(500).json({ error: result.message });
-      }
-    } catch (error) {
-      console.error("Failed to update conversion label:", error);
-      res.status(500).json({ error: "Failed to update conversion label" });
-    }
-  });
+
 
   // Admin app configuration endpoint
   app.get("/api/admin/app-config", requireAdmin, async (req, res) => {
