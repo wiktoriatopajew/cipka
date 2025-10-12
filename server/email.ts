@@ -157,19 +157,19 @@ export async function sendAdminReplyNotification(
     await transporter.sendMail({
       from: process.env.SMTP_USER,
       to: userEmail, // Send to USER, not admin
-      subject: `✉️ AutoMentor - Otrzymałeś odpowiedź od mechanika`,
+      subject: `✉️ Chat With Mechanic - You have a reply from our expert`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">🔧 AutoMentor</h1>
-            <p style="color: #e8e8ff; margin: 10px 0 0 0; font-size: 16px;">Odpowiedź od eksperta</p>
+            <h1 style="color: white; margin: 0; font-size: 24px;">🔧 Chat With Mechanic</h1>
+            <p style="color: #e8e8ff; margin: 10px 0 0 0; font-size: 16px;">Expert Reply</p>
           </div>
           
           <div style="background: #f8fafc; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e2e8f0;">
-            <p style="font-size: 18px; color: #334155; margin: 0 0 20px 0;">Cześć <strong>${username}</strong>! 👋</p>
+            <p style="font-size: 18px; color: #334155; margin: 0 0 20px 0;">Hi <strong>${username}</strong>! 👋</p>
             
             <p style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6;">
-              Otrzymałeś odpowiedź od naszego mechanika na Twoją wiadomość:
+              You have received a reply from our mechanic regarding your message:
             </p>
             
             <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #4f46e5; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -178,17 +178,17 @@ export async function sendAdminReplyNotification(
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="https://chatwithmechanic.com" style="background: #4f46e5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
-                💬 Kontynuuj rozmowę
+                💬 Continue Conversation
               </a>
             </div>
             
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
             
             <div style="color: #64748b; font-size: 14px; line-height: 1.5;">
-              <p><strong>💡 Wskazówka:</strong> Odpowiedz szybko, aby uzyskać najlepszą pomoc!</p>
-              <p><strong>🔕 Powiadomienia:</strong> Otrzymujesz max. 1 email na 15 minut podczas aktywnej rozmowy.</p>
+              <p><strong>💡 Tip:</strong> Reply quickly to get the best assistance!</p>
+              <p><strong>🔕 Notifications:</strong> You receive max. 1 email per 15 minutes during active conversation.</p>
               <p style="margin: 20px 0 0 0; font-size: 12px; color: #94a3b8;">
-                ID sesji: ${sessionId} | AutoMentor - Ekspert motoryzacyjny online
+                Session ID: ${sessionId} | Chat With Mechanic - Online Automotive Expert
               </p>
             </div>
           </div>

@@ -1092,7 +1092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await sendAdminReplyNotification(
                 user.email,
                 user.username,
-                content || 'Otrzymałeś nowe załączniki od mechanika',
+                content || 'You received new attachments from our mechanic',
                 sessionId
               );
               userNotificationTimestamps.set(user.email, now);

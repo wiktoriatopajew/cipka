@@ -27,7 +27,7 @@ async function testUserNotificationEmail() {
     await sendAdminReplyNotification(
       'wiktoriatopajew@gmail.com', // User email (test - normally different)
       'TestUser123',
-      'Sprawdziłem Twój problem z silnikiem. To prawdopodobnie uszkodzona pompa paliwa. Polecam wymienić ją w autoryzowanym serwisie. Koszt to około 800-1200 zł.',
+      'I checked your engine issue. It\'s likely a damaged fuel pump. I recommend replacing it at an authorized service center. The cost should be around $200-300.',
       'test-session-456'
     );
     

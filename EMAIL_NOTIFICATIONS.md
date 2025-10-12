@@ -31,7 +31,9 @@
 - Wysyłane: Gdy admin odpowie na wiadomość użytkownika
 - Docelowy: Email użytkownika (podany przy rejestracji)
 - Zawiera: Treść odpowiedzi, link do kontynuacji rozmowy
-- Subject: `✉️ AutoMentor - Otrzymałeś odpowiedź od mechanika`
+- Subject: `✉️ Chat With Mechanic - You have a reply from our expert`
+- **Language**: English (international users)
+- **Branding**: Chat With Mechanic
 - **Anti-spam**: Max 1 email na 15 minut na użytkownika
 
 ### 🚀 Konfiguracja Render
