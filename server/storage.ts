@@ -139,25 +139,6 @@ export class MemStorage implements IStorage {
     } else {
       console.log("No admin credentials provided - admin user not created");
     }
-
-    // Create test user without subscription
-    const testPassword = await bcrypt.hash("123456", 12);
-    const testUser: User = {
-      id: randomUUID(),
-      username: "test",
-      password: testPassword,
-      email: "test@example.com",
-      isAdmin: false,
-      hasSubscription: false,
-      isOnline: false,
-      referralCode: null,
-      referredBy: null,
-      lastSeen: new Date(),
-      createdAt: new Date(),
-      isBlocked: false,
-    };
-    this.users.set(testUser.id, testUser);
-    console.log("Test user created: username=test, password=123456, no subscription");
   }
 
   // User methods
@@ -852,22 +833,6 @@ export class PostgresStorage implements IStorage {
           console.error(`❌ Failed to create admin user:`, error);
         }
       }
-    }
-
-    // Create test user without subscription
-    const existingTestUser = await this.getUserByUsername("test");
-    if (!existingTestUser) {
-      const testPassword = await bcrypt.hash("123456", 12);
-      await db.insert(users).values({
-        username: "test",
-        password: testPassword,
-        email: "test@example.com",
-        isAdmin: false,
-        hasSubscription: false,
-        isOnline: false,
-        isBlocked: false,
-      });
-      console.log("Test user created: username=test, password=123456, no subscription");
     }
   }
 
