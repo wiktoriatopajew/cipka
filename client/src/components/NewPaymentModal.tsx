@@ -81,6 +81,44 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
     }
   }, [open]);
 
+  // Check for completed PayPal payment on modal open
+  useEffect(() => {
+    if (open) {
+      const paymentData = localStorage.getItem('payment-data');
+      if (paymentData) {
+        try {
+          const data = JSON.parse(paymentData);
+          console.log('🔍 Found payment data in localStorage:', data);
+          
+          if (data.paymentMethod === 'paypal' && data.paymentId) {
+            console.log('💰 PayPal payment detected, setting up account creation...');
+            
+            // Set payment details
+            setPaymentId(data.paymentId);
+            setEmail(data.email || '');
+            
+            // Set plan based on amount
+            let detectedPlan: 'basic' | 'professional' | 'expert' = 'basic';
+            if (data.amount >= 39.99) detectedPlan = 'expert';
+            else if (data.amount >= 24.99) detectedPlan = 'professional';
+            setCurrentSelectedPlan(detectedPlan);
+            
+            // Skip to account creation step
+            setStep("account");
+            
+            toast({
+              title: "PayPal Payment Complete!",
+              description: "Please create your account to complete the process.",
+              duration: 4000,
+            });
+          }
+        } catch (error) {
+          console.error('❌ Error parsing payment data:', error);
+        }
+      }
+    }
+  }, [open]);
+
   // Create user and subscription mutation
   const createAccountMutation = useMutation({
     mutationFn: async (accountData: { username: string; email: string; password: string; paymentId: string; paymentMethod: string; referralCode?: string }) => {
@@ -133,6 +171,10 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
       });
 
       GoogleAdsConversions.trackSignup(email);
+      
+      // Clean up PayPal payment data from localStorage
+      localStorage.removeItem('payment-data');
+      console.log('🧹 Cleaned up PayPal payment data from localStorage');
       
       toast({
         title: "Account created successfully!",

@@ -48,9 +48,38 @@ export default function PaymentSuccess() {
 
       const result = await response.json();
       console.log('✅ PayPal payment captured:', result);
-      setSuccess(true);
       
-      // Redirect to home after 3 seconds
+      // Check if we have payment context for user creation
+      const paymentContext = localStorage.getItem('paypal-payment-context');
+      if (paymentContext) {
+        try {
+          const context = JSON.parse(paymentContext);
+          console.log('🔍 Found PayPal payment context:', context);
+          
+          // Store payment data for user creation process
+          const paymentData = {
+            paymentId: token,
+            paymentMethod: 'paypal',
+            amount: context.amount,
+            email: context.email,
+            currency: context.currency || 'USD'
+          };
+          
+          localStorage.setItem('payment-data', JSON.stringify(paymentData));
+          localStorage.removeItem('paypal-payment-context'); // Clean up
+          
+          console.log('🔄 Redirecting to user creation...');
+          
+          // Redirect to home with payment success flag - this should trigger user creation modal
+          setLocation('/?payment=success&source=paypal');
+          return;
+        } catch (error) {
+          console.error('❌ Error parsing payment context:', error);
+        }
+      }
+      
+      // Default behavior - show success and redirect to home
+      setSuccess(true);
       setTimeout(() => {
         setLocation('/');
       }, 3000);

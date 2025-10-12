@@ -59,6 +59,18 @@ export default function SimplePayPalPaymentNoPopup({
     setCreating(true);
     try {
       console.log('🔄 Creating PayPal order (Direct Redirect)...');
+      
+      // Save payment context for after return from PayPal
+      const paymentContext = {
+        email: email,
+        amount: amount,
+        currency: currency,
+        timestamp: Date.now(),
+        source: 'paypal-redirect'
+      };
+      localStorage.setItem('paypal-payment-context', JSON.stringify(paymentContext));
+      console.log('💾 Saved PayPal payment context:', paymentContext);
+      
       const response = await fetch('/api/paypal/create-order', {
         method: 'POST',
         headers: {

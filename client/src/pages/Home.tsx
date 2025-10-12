@@ -48,6 +48,7 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
     const paymentParam = urlParams.get('payment');
+    const sourceParam = urlParams.get('source');
     
     // Track page view for Google Ads remarketing
     GoogleAdsConversions.trackPageView('/');
@@ -56,8 +57,31 @@ export default function Home() {
       setReferralCode(refCode);
     }
     
-    // Auto-open PaymentModal if payment=true in URL
-    if (paymentParam === 'true') {
+    // Handle PayPal payment success return
+    if (paymentParam === 'success' && sourceParam === 'paypal') {
+      console.log('🔄 PayPal payment success detected, opening payment modal for account creation...');
+      
+      // Check if we have payment data
+      const paymentData = localStorage.getItem('payment-data');
+      if (paymentData) {
+        try {
+          const data = JSON.parse(paymentData);
+          console.log('💰 PayPal payment data found:', data);
+          
+          toast({
+            title: "🎉 PayPal Payment Successful!",
+            description: "Now create your account to access your chat session.",
+            duration: 5000,
+          });
+          
+          setShowPayment(true);
+        } catch (error) {
+          console.error('❌ Error parsing payment data:', error);
+        }
+      }
+    }
+    // Auto-open PaymentModal if payment=true in URL (normal case)
+    else if (paymentParam === 'true') {
       setShowPayment(true);
       // Show welcome message for referral users
       if (refCode) {
@@ -70,10 +94,11 @@ export default function Home() {
     }
     
     // Clean up URL parameters
-    if (refCode || paymentParam) {
+    if (refCode || paymentParam || sourceParam) {
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('ref');
       newUrl.searchParams.delete('payment');
+      newUrl.searchParams.delete('source');
       window.history.replaceState({}, '', newUrl.toString());
     }
   }, []);
