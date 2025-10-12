@@ -58,33 +58,34 @@ if (process.env.NODE_ENV === 'production') {
 // Initialize Stripe after environment variables are loaded
 let stripe: Stripe | null = null;
 
-// Function to get dynamic Stripe instance from database
+// Function to get dynamic Stripe instance - PRIORITIZE .env over database
 async function getStripeInstance(): Promise<Stripe | null> {
   try {
-    // Import storage here to avoid circular dependency
-    const { storage } = await import('./storage');
-    
-    // Try to get from database first
-    const config = await storage.getAppConfig();
-    const secretKey = config?.stripeSecretKey;
-    
-    if (secretKey) {
-      return new Stripe(secretKey, {
-        apiVersion: "2025-08-27.basil",
-      });
-    }
-    
-    // Fallback to environment variable
+    // PRIORITY 1: Environment variable (.env file) - LIVE KEYS
     if (process.env.STRIPE_SECRET_KEY) {
+      console.log('🔥 Using Stripe from .env (prioritized)');
       return new Stripe(process.env.STRIPE_SECRET_KEY, {
         apiVersion: "2025-08-27.basil",
       });
     }
     
+    // PRIORITY 2: Database fallback (might have old test keys)
+    const { storage } = await import('./storage');
+    const config = await storage.getAppConfig();
+    const secretKey = config?.stripeSecretKey;
+    
+    if (secretKey) {
+      console.log('⚠️ Using Stripe from database (fallback)');
+      return new Stripe(secretKey, {
+        apiVersion: "2025-08-27.basil",
+      });
+    }
+    
+    console.log('❌ No Stripe keys found');
     return null;
   } catch (error) {
     console.error('Error getting Stripe instance:', error);
-    // Fallback to environment variable
+    // Final fallback to environment variable
     if (process.env.STRIPE_SECRET_KEY) {
       return new Stripe(process.env.STRIPE_SECRET_KEY, {
         apiVersion: "2025-08-27.basil",
