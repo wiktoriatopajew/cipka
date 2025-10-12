@@ -12,7 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PayPalButton from "@/components/PayPalButton";
 import SimpleStripePayment from "@/components/SimpleStripePayment";
-import SimplePayPalPayment from "@/components/SimplePayPalPaymentFixed";
+import SimplePayPalPayment from "@/components/SimplePayPalPaymentNoPopup";
 import { GoogleAdsConversions, PLAN_PRICES, PlanType } from "@/lib/googleAdsTracking";
 
 interface PaymentModalProps {

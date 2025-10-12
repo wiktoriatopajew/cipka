@@ -214,7 +214,60 @@ export default function SimplePayPalPayment({
               layout: 'vertical',
               color: 'gold',
               shape: 'rect',
-              tagline: false
+              tagline: false,
+              height: 35
+            }}
+            fundingSource={undefined}
+            // Force no popups - always redirect
+            onInit={(data, actions) => {
+              // Disable funding sources that might cause popups
+              return actions.disable();
+            }}
+            // Force immediate redirect instead of popup
+            createOrder={async (data, actions) => {
+              console.log('🔄 Creating PayPal order (NO POPUP MODE)...');
+              try {
+                const response = await fetch('/api/paypal/create-order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    amount: amount.toString(),
+                    currency: currency,
+                    intent: 'CAPTURE',
+                    email: email
+                  }),
+                });
+
+                if (!response.ok) {
+                  throw new Error('Failed to create order');
+                }
+
+                const orderData = await response.json();
+                console.log('✅ PayPal order created:', orderData.id);
+                
+                // FORCE: Immediately redirect instead of using popup
+                if (orderData.checkoutUrl) {
+                  console.log('🔄 Force redirecting to PayPal (no popup)...');
+                  window.location.href = orderData.checkoutUrl;
+                  return orderData.id; // This won't be used since we're redirecting
+                } else {
+                  // Fallback URL construction
+                  const fallbackUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${orderData.id}`;
+                  console.log('🔄 Force redirecting to PayPal fallback (no popup)...');
+                  window.location.href = fallbackUrl;
+                  return orderData.id;
+                }
+              } catch (error) {
+                console.error('❌ Error creating order:', error);
+                toast({
+                  title: "Payment Error",
+                  description: "Failed to initialize payment. Please try again.",
+                  variant: "destructive"
+                });
+                throw error;
+              }
             }}
           />
           
