@@ -170,21 +170,21 @@ export default function AdminPanel() {
   const { data: dashboardData, refetch: refetchDashboard } = useQuery<AdminData>({
     queryKey: ["/api/admin/dashboard"],
     enabled: isAuthenticated,
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 30000, // Refresh every 30 seconds (reduced from 5s)
   });
 
   // Chat sessions query
   const { data: chatSessions } = useQuery<ChatSession[]>({
     queryKey: ["/api/admin/chats"],
     enabled: isAuthenticated,
-    refetchInterval: 3000, // Refresh every 3 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds (reduced from 3s)
   });
 
   // Messages for selected chat
   const { data: messages, refetch: refetchMessages } = useQuery<Message[]>({
     queryKey: ["/api/admin/chats", selectedChatId, "messages"],
     enabled: isAuthenticated && !!selectedChatId,
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 5000, // Refresh every 5 seconds (reduced from 2s)
   });
 
   // Live data query
@@ -196,7 +196,7 @@ export default function AdminPanel() {
   }>({
     queryKey: ["/api/admin/live-data"],
     enabled: isAuthenticated,
-    refetchInterval: 1000, // Refresh every second
+    refetchInterval: 10000, // Refresh every 10 seconds (reduced from 1s)
   });
 
   // Send message mutation
@@ -508,7 +508,7 @@ export default function AdminPanel() {
     return Math.max(0, diffDays); // Return 0 if expired
   };
 
-  // Filter users based on search query
+  // Filter and sort users based on search query (stable sorting to prevent jumping)
   const filteredUsers = dashboardData?.users.filter((user: any) => {
     if (!userSearchQuery.trim()) return true;
     
@@ -517,6 +517,15 @@ export default function AdminPanel() {
       user.username?.toLowerCase().includes(searchLower) ||
       user.email?.toLowerCase().includes(searchLower)
     );
+  }).sort((a: any, b: any) => {
+    // Stable sort: subscribed first, then by creation date, then by ID
+    if (a.hasSubscription !== b.hasSubscription) {
+      return b.hasSubscription - a.hasSubscription;
+    }
+    if (a.createdAt !== b.createdAt) {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    return a.id.localeCompare(b.id);
   }) || [];
 
   // Filter chats based on search query

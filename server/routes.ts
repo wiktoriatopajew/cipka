@@ -1342,20 +1342,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // User Authentication endpoints
   app.post("/api/users/register", authRateLimit, async (req, res) => {
-    // 🚨 EMERGENCY: Registration temporarily disabled due to bot attack
-    console.log("🚨 BLOCKED REGISTRATION ATTEMPT:", {
-      ip: req.ip,
-      userAgent: req.get("User-Agent"),
-      body: req.body,
-      timestamp: new Date().toISOString()
-    });
-    
-    return res.status(503).json({ 
-      error: "Registration temporarily disabled due to security maintenance",
-      message: "Please try again later. Contact support if urgent."
-    });
-    
-    /* ORIGINAL CODE - RE-ENABLE AFTER FIXING BOT ISSUE
     try {
       // Validate request body
       const result = insertUserSchema.safeParse(req.body);
@@ -1430,7 +1416,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Registration error:", error);
       res.status(500).json({ error: "Failed to create user" });
     }
-    */ // END OF COMMENTED ORIGINAL CODE
   });
 
   app.post("/api/users/login", authRateLimit, async (req, res) => {

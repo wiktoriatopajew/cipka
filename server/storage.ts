@@ -1277,7 +1277,7 @@ export class PostgresStorage implements IStorage {
         subscriptionsData = result;
       }
       
-      console.log(`✅ Found ${subscriptionsData.length} active subscriptions`);
+      Logger.sql(`Found ${subscriptionsData.length} active subscriptions`);
       
       return subscriptionsData.map((rawSub: any) => ({
         id: rawSub.id,
