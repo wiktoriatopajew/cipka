@@ -140,6 +140,67 @@ export async function sendSubsequentMessageNotification(
   }
 }
 
+// Send notification to USER when admin replies (with anti-spam protection)
+export async function sendAdminReplyNotification(
+  userEmail: string,
+  username: string,
+  adminMessage: string,
+  sessionId: string
+) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('Skipping admin reply email: SMTP not configured');
+    return;
+  }
+
+  try {
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to: userEmail, // Send to USER, not admin
+      subject: `✉️ AutoMentor - Otrzymałeś odpowiedź od mechanika`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">🔧 AutoMentor</h1>
+            <p style="color: #e8e8ff; margin: 10px 0 0 0; font-size: 16px;">Odpowiedź od eksperta</p>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 18px; color: #334155; margin: 0 0 20px 0;">Cześć <strong>${username}</strong>! 👋</p>
+            
+            <p style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6;">
+              Otrzymałeś odpowiedź od naszego mechanika na Twoją wiadomość:
+            </p>
+            
+            <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #4f46e5; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <p style="margin: 0; color: #334155; line-height: 1.6; font-size: 16px;">${adminMessage}</p>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://chatwithmechanic.com" style="background: #4f46e5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
+                💬 Kontynuuj rozmowę
+              </a>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
+            
+            <div style="color: #64748b; font-size: 14px; line-height: 1.5;">
+              <p><strong>💡 Wskazówka:</strong> Odpowiedz szybko, aby uzyskać najlepszą pomoc!</p>
+              <p><strong>🔕 Powiadomienia:</strong> Otrzymujesz max. 1 email na 15 minut podczas aktywnej rozmowy.</p>
+              <p style="margin: 20px 0 0 0; font-size: 12px; color: #94a3b8;">
+                ID sesji: ${sessionId} | AutoMentor - Ekspert motoryzacyjny online
+              </p>
+            </div>
+          </div>
+        </div>
+      `,
+    });
+    console.log(`Admin reply notification sent to user: ${userEmail}`);
+  } catch (error) {
+    console.error('Failed to send admin reply notification:', error);
+  }
+}
+
 export async function sendChatActivityNotification(
   username: string,
   email: string,

@@ -7,7 +7,7 @@ import rateLimit from "express-rate-limit";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { sendUserLoginNotification, sendFirstMessageNotification, sendChatActivityNotification, sendContactFormEmail } from "./email";
+import { sendUserLoginNotification, sendFirstMessageNotification, sendChatActivityNotification, sendContactFormEmail, sendAdminReplyNotification } from "./email";
 import { fileURLToPath } from "url";
 import Logger from './logger';
 
@@ -20,6 +20,10 @@ import { stripe, getStripeInstance } from "./index";
 // Track last notification time for each session (for 15-minute alerts)
 const sessionNotificationTimestamps: Map<string, number> = new Map();
 const NOTIFICATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+
+// Track last notification time for USER notifications (admin replies)
+const userNotificationTimestamps: Map<string, number> = new Map();
+const USER_NOTIFICATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes anti-spam for users
 
 // Health check endpoint for Railway
 const healthCheck = (req: Request, res: Response) => {
@@ -1070,6 +1074,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If there's an attachment, link it to the message
       if (attachmentId) {
         await storage.linkAttachmentToMessage(attachmentId, message.id);
+      }
+
+      // Send email notification to user about admin reply (with anti-spam protection)
+      try {
+        const session = await storage.getChatSession(sessionId);
+        if (session?.userId) {
+          const user = await storage.getUser(session.userId);
+          if (user?.email) {
+            const now = Date.now();
+            const lastNotification = userNotificationTimestamps.get(user.email) || 0;
+            const timeSinceLastNotification = now - lastNotification;
+            
+            // Send notification if it's the first reply or 15+ minutes have passed
+            if (timeSinceLastNotification >= USER_NOTIFICATION_INTERVAL_MS) {
+              Logger.payment(`Sending admin reply notification to user: ${user.email}`);
+              await sendAdminReplyNotification(
+                user.email,
+                user.username,
+                content || 'Otrzymałeś nowe załączniki od mechanika',
+                sessionId
+              );
+              userNotificationTimestamps.set(user.email, now);
+              Logger.payment(`Admin reply notification sent to: ${user.email}`);
+            } else {
+              const remainingMinutes = Math.ceil((USER_NOTIFICATION_INTERVAL_MS - timeSinceLastNotification) / (1000 * 60));
+              Logger.payment(`Skipping user notification (anti-spam): ${remainingMinutes} min remaining`);
+            }
+          }
+        }
+      } catch (emailError) {
+        Logger.error('Failed to send admin reply notification:', emailError);
       }
 
       const sender = await storage.getUser(req.session.adminId);
