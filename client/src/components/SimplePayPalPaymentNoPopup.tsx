@@ -12,6 +12,7 @@ interface SimplePayPalPaymentProps {
   amount: number;
   currency?: string;
   email: string;
+  referralCode?: string;
   onSuccess: (paypalOrderId: string) => void;
   onError: (error: string) => void;
 }
@@ -20,6 +21,7 @@ export default function SimplePayPalPaymentNoPopup({
   amount,
   currency = 'USD',
   email,
+  referralCode,
   onSuccess,
   onError
 }: SimplePayPalPaymentProps) {
@@ -65,6 +67,7 @@ export default function SimplePayPalPaymentNoPopup({
         email: email,
         amount: amount,
         currency: currency,
+        referralCode: referralCode || '',
         timestamp: Date.now(),
         source: 'paypal-redirect'
       };

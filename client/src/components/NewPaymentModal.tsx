@@ -97,6 +97,12 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
             setPaymentId(data.paymentId);
             setEmail(data.email || '');
             
+            // Set referral code if present in PayPal payment data
+            if (data.referralCode && data.referralCode.trim() !== '') {
+              setUserInputReferralCode(data.referralCode);
+              console.log('🎁 PayPal referral code restored:', data.referralCode);
+            }
+            
             // CRITICAL: Set payment method to PayPal!
             setPaymentMethod("paypal");
             
@@ -667,6 +673,7 @@ export default function PaymentModal({ open, onOpenChange, onPaymentSuccess, veh
                   amount={currentPrice}
                   currency="USD"
                   email={email}
+                  referralCode={userInputReferralCode}
                   onSuccess={handlePayPalSuccess}
                   onError={handlePayPalError}
                 />

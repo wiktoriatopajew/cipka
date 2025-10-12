@@ -62,7 +62,8 @@ export default function PaymentSuccess() {
             paymentMethod: 'paypal',
             amount: context.amount,
             email: context.email,
-            currency: context.currency || 'USD'
+            currency: context.currency || 'USD',
+            referralCode: context.referralCode || ''
           };
           
           localStorage.setItem('payment-data', JSON.stringify(paymentData));
