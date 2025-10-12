@@ -26,10 +26,14 @@ services:
         sync: false
       - key: VITE_STRIPE_PUBLIC_KEY
         sync: false
+      - key: PAYPAL_CLIENT_ID
+        value: AQQRFqiUJuokmeHal83UnsJrb_oRoZ6ynJ2eBW1RA3tMKDojrT4y0KNa1SffdoE1MMG9HOFKCJpydUTB
+      - key: PAYPAL_CLIENT_SECRET
+        value: EAkvlZmB_DqTu_KyBw2Fb_xupIJrt549e321Pd1bsWzmuAZrohQX10er1CFRiYjObtRiHpxfeoOyZRqU
       - key: SMTP_USER
-        sync: false
+        value: wiktoriatopajew@gmail.com
       - key: SMTP_PASS
-        sync: false
+        value: tjcnwadgvaiolgdo
       # Logger Configuration - Production Minimal
       - key: LOG_LEVEL
         value: warn
