@@ -7,8 +7,8 @@ async function setupGoogleAds() {
   
   const config = {
     conversionId: 'AW-17646488974',
-    purchaseLabel: 'purchase_conversion',  // Replace with actual label from Google Ads
-    signupLabel: null,                     // Not needed - registration only after purchase
+    purchaseLabel: '32fyCMne66sbEI6bwN5B',  // Real conversion label from Google Ads
+    signupLabel: null,                      // Not needed - registration only after purchase
     enabled: true
   };
   

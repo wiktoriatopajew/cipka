@@ -13,7 +13,7 @@ INSERT INTO google_ads_config (
   updated_at
 ) VALUES (
   'AW-17646488974',
-  'purchase_conversion',
+  '32fyCMne66sbEI6bwN5B',  -- Real conversion label from Google Ads
   NULL, -- Signup tracking not needed since registration only happens after purchase
   true,
   NOW()
