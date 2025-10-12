@@ -19,6 +19,8 @@ import BoatsAndWatercraft from "@/pages/vehicles/BoatsAndWatercraft";
 import Buses from "@/pages/vehicles/Buses";
 import RVAndCampers from "@/pages/vehicles/RVAndCampers";
 import ConstructionEquipment from "@/pages/vehicles/ConstructionEquipment";
+import PaymentSuccess from "@/pages/PaymentSuccess";
+import PaymentCancelled from "@/pages/PaymentCancelled";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -45,6 +47,10 @@ function Router() {
       <Route path="/vehicles/buses" component={Buses} />
       <Route path="/vehicles/rv-campers" component={RVAndCampers} />
       <Route path="/vehicles/construction-equipment" component={ConstructionEquipment} />
+      
+      {/* Payment Pages */}
+      <Route path="/payment-success" component={PaymentSuccess} />
+      <Route path="/payment-cancelled" component={PaymentCancelled} />
       
       <Route component={NotFound} />
     </Switch>
