@@ -100,7 +100,7 @@ export default function SimplePayPalPaymentNoPopup({
         window.location.href = orderData.checkoutUrl;
       } else {
         // Fallback URL construction
-        const fallbackUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${orderData.id}`;
+        const fallbackUrl = `https://www.paypal.com/checkoutnow?token=${orderData.id}`;
         console.log('🔄 Redirecting to PayPal fallback...');
         window.location.href = fallbackUrl;
       }

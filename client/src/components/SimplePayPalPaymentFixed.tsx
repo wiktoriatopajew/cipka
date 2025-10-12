@@ -254,7 +254,7 @@ export default function SimplePayPalPayment({
                   return orderData.id; // This won't be used since we're redirecting
                 } else {
                   // Fallback URL construction
-                  const fallbackUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${orderData.id}`;
+                  const fallbackUrl = `https://www.paypal.com/checkoutnow?token=${orderData.id}`;
                   console.log('🔄 Force redirecting to PayPal fallback (no popup)...');
                   window.location.href = fallbackUrl;
                   return orderData.id;
@@ -303,7 +303,7 @@ export default function SimplePayPalPayment({
                     window.location.href = orderData.checkoutUrl;
                   } else {
                     // Fallback URL construction
-                    const fallbackUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${orderData.id}`;
+                    const fallbackUrl = `https://www.paypal.com/checkoutnow?token=${orderData.id}`;
                     window.location.href = fallbackUrl;
                   }
                 } catch (error) {

@@ -31,7 +31,7 @@ const client = new Client({
     oAuthClientSecret: PAYPAL_CLIENT_SECRET,
   },
   timeout: 0,
-  environment: Environment.Sandbox, // FORCE sandbox mode for testing
+  environment: Environment.Production, // Production mode for live transactions
   logging: {
     logLevel: LogLevel.Info,
     logRequest: {
@@ -121,7 +121,7 @@ export async function createPaypalOrder(req: Request, res: Response) {
 
     // Add checkout URL for popup blocker fallback
     if (jsonResponse.id && httpStatusCode < 400) {
-      const checkoutUrl = `https://www.sandbox.paypal.com/checkoutnow?token=${jsonResponse.id}`;
+      const checkoutUrl = `https://www.paypal.com/checkoutnow?token=${jsonResponse.id}`;
       jsonResponse.checkoutUrl = checkoutUrl;
       console.log('🔗 PayPal checkout URL generated:', checkoutUrl);
     }
