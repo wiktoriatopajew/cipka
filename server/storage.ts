@@ -3133,5 +3133,5 @@ export class PostgresStorage implements IStorage {
   }
 }
 
-// Force SQLite/RAW SQL for all environments (local and Render)
-export const storage = new MemStorage();
+// Use PostgreSQL for all environments with proper configuration
+export const storage = new PostgresStorage();
