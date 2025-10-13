@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4FC3F7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#29B6F6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Logo -->
+  <g transform="translate(100, 180)">
+    <rect width="120" height="120" rx="30" fill="url(#logoGradient)"/>
+    <path d="M30 45c0-8.25 6.75-15 15-15h30c8.25 0 15 6.75 15 15v22.5c0 8.25-6.75 15-15 15h-22.5l-15 11.25v-11.25c-4.125 0-7.5-3.375-7.5-7.5v-30z" fill="white"/>
+    <circle cx="52.5" cy="56.25" r="4.125" fill="#29B6F6"/>
+    <circle cx="67.5" cy="56.25" r="4.125" fill="#29B6F6"/>
+    <circle cx="82.5" cy="56.25" r="4.125" fill="#29B6F6"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="260" y="240" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#1e293b">
+    Chat With Mechanic
+  </text>
+  <text x="260" y="290" font-family="Arial, sans-serif" font-size="32" fill="#475569">
+    Talk directly with certified mechanics online
+  </text>
+  <text x="260" y="340" font-family="Arial, sans-serif" font-size="24" fill="#64748b">
+    Get help with your car, boat, tractor, or engine directly
+  </text>
+  <text x="260" y="370" font-family="Arial, sans-serif" font-size="24" fill="#64748b">
+    from certified mechanics. Instant chat support available 24/7.
+  </text>
+  
+  <!-- Call to action -->
+  <rect x="260" y="420" width="200" height="50" rx="25" fill="url(#logoGradient)"/>
+  <text x="360" y="450" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">
+    Start Chat Now
+  </text>
+</svg>
