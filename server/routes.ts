@@ -2631,6 +2631,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/app-config", requireAdmin, async (req, res) => {
     try {
+      console.log('📝 Updating app config, faviconPath:', req.body.faviconPath);
+      
       const {
         appName,
         appUrl,
@@ -2682,11 +2684,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         faviconPath
       };
 
+      console.log('💾 Saving config to database...');
       const result = await storage.updateAppConfig(config);
+      console.log('✅ Config saved successfully:', result);
       res.json(result);
     } catch (error) {
-      console.error("Failed to update app config:", error);
-      res.status(500).json({ error: "Failed to update app configuration" });
+      console.error("❌ Failed to update app config:", error);
+      console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      res.status(500).json({ 
+        error: "Failed to update app configuration",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

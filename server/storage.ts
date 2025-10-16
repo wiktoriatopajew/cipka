@@ -2635,13 +2635,20 @@ export class PostgresStorage implements IStorage {
     try {
       console.log('🔥 RAW SQL updateAppConfig:', config);
       
+      // Get existing config
       const existingConfigResult = await db.select().from(appConfig).limit(1);
+      console.log('📊 Existing config result:', existingConfigResult);
       
-      // Defensive mapping for existing config check
-      const existingConfigs = existingConfigResult?.rows || (Array.isArray(existingConfigResult) ? existingConfigResult : []);
+      // Handle both PostgreSQL (returns array directly) and SQLite (returns .rows)
+      const existingConfigs = Array.isArray(existingConfigResult) 
+        ? existingConfigResult 
+        : (existingConfigResult?.rows || []);
+      
+      console.log('📋 Existing configs count:', existingConfigs.length);
       
       if (existingConfigs.length > 0) {
         console.log('✅ Updating existing App Config with ID:', existingConfigs[0].id);
+        
         // Update existing config
         const result = await db.update(appConfig)
           .set({
@@ -2668,11 +2675,17 @@ export class PostgresStorage implements IStorage {
           .where(eq(appConfig.id, existingConfigs[0].id))
           .returning();
           
-        console.log('✅ App Config updated:', result);
-        const updatedConfigs = result?.rows || (Array.isArray(result) ? result : []);
-        return updatedConfigs[0] || result[0];
+        console.log('✅ App Config updated result:', result);
+        
+        // Handle both PostgreSQL and SQLite return formats
+        const updatedConfigs = Array.isArray(result) 
+          ? result 
+          : (result?.rows || []);
+          
+        return updatedConfigs[0];
       } else {
         console.log('✅ Creating new App Config');
+        
         // Create new config
         const result = await db.insert(appConfig).values({
           appName: config.appName || 'AutoMentor',
@@ -2696,12 +2709,18 @@ export class PostgresStorage implements IStorage {
           updatedAt: new Date()
         }).returning();
         
-        console.log('✅ New App Config created:', result);
-        const newConfigs = result?.rows || (Array.isArray(result) ? result : []);
-        return newConfigs[0] || result[0];
+        console.log('✅ New App Config created result:', result);
+        
+        // Handle both PostgreSQL and SQLite return formats
+        const newConfigs = Array.isArray(result) 
+          ? result 
+          : (result?.rows || []);
+          
+        return newConfigs[0];
       }
     } catch (error) {
       console.error('❌ RAW SQL updateAppConfig error:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : String(error));
       throw error;
     }
   }
