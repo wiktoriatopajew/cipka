@@ -234,12 +234,31 @@ export default function AppConfigPanel() {
         throw new Error(result.error || 'Favicon upload failed');
       }
 
-      // Update config with new favicon path
-      setConfig(prev => ({ ...prev, faviconPath: result.faviconPath }));
-      setIsChanged(true);
+      // Update config with new favicon path and save automatically
+      const updatedConfig = { ...config, faviconPath: result.faviconPath };
+      setConfig(updatedConfig);
+      
+      // Auto-save the configuration with new favicon path
+      const saveResponse = await fetch('/api/admin/app-config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(updatedConfig)
+      });
+      
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save favicon configuration');
+      }
+      
+      // Refresh the config from server
+      queryClient.invalidateQueries({ queryKey: ['appConfig'] });
+      
+      setIsChanged(false);
       setFaviconUploadResult({ 
         success: true, 
-        message: `Favicon uploaded successfully! Don't forget to save configuration.` 
+        message: `Favicon uploaded and saved successfully!` 
       });
       setTimeout(() => setFaviconUploadResult(null), 8000);
 

@@ -3040,6 +3040,121 @@ Test sent at: ${new Date().toLocaleString()}
     }
   });
 
+  // Page view tracking with geolocation
+  app.post("/api/analytics/pageview", async (req, res) => {
+    try {
+      const { pageUrl, referrer, userAgent } = req.body;
+      
+      // Get IP address from request
+      const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() 
+        || req.headers['x-real-ip'] as string
+        || req.socket.remoteAddress 
+        || 'unknown';
+
+      // Get geolocation data from IP using free ipapi.co service
+      let country = 'Unknown';
+      let city = 'Unknown';
+      
+      if (ipAddress && ipAddress !== 'unknown' && !ipAddress.includes('127.0.0.1') && !ipAddress.includes('::1')) {
+        try {
+          const geoResponse = await fetch(`https://ipapi.co/${ipAddress}/json/`, {
+            headers: { 'User-Agent': 'AutoMentor Analytics' }
+          });
+          
+          if (geoResponse.ok) {
+            const geoData = await geoResponse.json();
+            country = geoData.country_name || 'Unknown';
+            city = geoData.city || 'Unknown';
+          }
+        } catch (geoError) {
+          console.debug('Geolocation lookup failed:', geoError);
+        }
+      }
+
+      // Parse user agent for device info
+      const ua = userAgent?.toLowerCase() || '';
+      let deviceType = 'desktop';
+      let browser = 'unknown';
+      let os = 'unknown';
+
+      // Detect device type
+      if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
+        deviceType = 'mobile';
+      } else if (ua.includes('tablet') || ua.includes('ipad')) {
+        deviceType = 'tablet';
+      }
+
+      // Detect browser
+      if (ua.includes('chrome')) browser = 'Chrome';
+      else if (ua.includes('firefox')) browser = 'Firefox';
+      else if (ua.includes('safari')) browser = 'Safari';
+      else if (ua.includes('edge')) browser = 'Edge';
+      else if (ua.includes('opera')) browser = 'Opera';
+
+      // Detect OS
+      if (ua.includes('windows')) os = 'Windows';
+      else if (ua.includes('mac os')) os = 'macOS';
+      else if (ua.includes('linux')) os = 'Linux';
+      else if (ua.includes('android')) os = 'Android';
+      else if (ua.includes('ios') || ua.includes('iphone') || ua.includes('ipad')) os = 'iOS';
+
+      // Track the page view
+      await storage.trackEvent({
+        eventType: 'page_view',
+        eventName: 'page_visited',
+        userId: req.session?.userId || null,
+        sessionId: req.sessionID || null,
+        properties: null,
+        pageUrl,
+        referrer: referrer || null,
+        userAgent: userAgent || null,
+        ipAddress,
+        country,
+        city,
+        deviceType,
+        browser,
+        os
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to track page view:", error);
+      // Don't fail the request if tracking fails
+      res.json({ success: false, error: 'Tracking failed' });
+    }
+  });
+
+  // Get page view analytics (admin only)
+  app.get("/api/admin/analytics/pageviews", requireAdmin, async (req, res) => {
+    try {
+      const { startDate, endDate, groupBy = 'day' } = req.query;
+      const stats = await storage.getPageViewStats(
+        startDate as string,
+        endDate as string,
+        groupBy as string
+      );
+      res.json(stats);
+    } catch (error) {
+      console.error("Failed to get page view stats:", error);
+      res.status(500).json({ error: "Failed to get page view statistics" });
+    }
+  });
+
+  // Get visitor location stats (admin only)
+  app.get("/api/admin/analytics/visitors", requireAdmin, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const stats = await storage.getVisitorStats(
+        startDate as string,
+        endDate as string
+      );
+      res.json(stats);
+    } catch (error) {
+      console.error("Failed to get visitor stats:", error);
+      res.status(500).json({ error: "Failed to get visitor statistics" });
+    }
+  });
+
   // ===============================
   // CMS ENDPOINTS
   // ===============================

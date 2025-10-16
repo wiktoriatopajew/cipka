@@ -14,6 +14,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import PageViewAnalytics from "@/components/PageViewAnalytics";
 import CMSPanel from "@/components/CMSPanel";
 import { useToast } from "@/hooks/use-toast";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -799,6 +800,10 @@ export default function AdminPanel() {
               <BarChart3 className="w-4 h-4 mr-2" />
               Analytics
             </TabsTrigger>
+            <TabsTrigger value="pageviews" data-testid="tab-pageviews">
+              <Eye className="w-4 h-4 mr-2" />
+              Statystyki Odwiedzin
+            </TabsTrigger>
             <TabsTrigger value="cms" data-testid="tab-cms">
               <FileEdit className="w-4 h-4 mr-2" />
               CMS
@@ -1515,6 +1520,10 @@ export default function AdminPanel() {
 
           <TabsContent value="analytics" className="space-y-6">
             <AnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="pageviews" className="space-y-6">
+            <PageViewAnalytics />
           </TabsContent>
 
           <TabsContent value="cms" className="space-y-6">

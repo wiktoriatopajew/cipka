@@ -86,6 +86,8 @@ export interface IStorage {
   getDashboardStats(startDate?: string, endDate?: string): Promise<any>;
   getRevenueAnalytics(startDate?: string, endDate?: string): Promise<any>;
   getChartData(type: string, period: string): Promise<any>;
+  getPageViewStats(startDate?: string, endDate?: string, groupBy?: string): Promise<any>;
+  getVisitorStats(startDate?: string, endDate?: string): Promise<any>;
   
   // CMS methods
   getContentPage(pageKey: string): Promise<ContentPage | null>;
@@ -588,6 +590,27 @@ export class MemStorage implements IStorage {
 
   async getChartData(type: string, period: string): Promise<any> {
     return { labels: [], data: [] };
+  }
+
+  async getPageViewStats(startDate?: string, endDate?: string, groupBy?: string): Promise<any> {
+    // Stub implementation for MemStorage
+    return {
+      totalPageViews: 0,
+      uniqueVisitors: 0,
+      pagesByUrl: [],
+      viewsByPeriod: []
+    };
+  }
+
+  async getVisitorStats(startDate?: string, endDate?: string): Promise<any> {
+    // Stub implementation for MemStorage
+    return {
+      byCountry: [],
+      byCity: [],
+      byDevice: [],
+      byBrowser: [],
+      byOS: []
+    };
   }
 
   // CMS methods (stub implementations for MemStorage)
@@ -2935,6 +2958,198 @@ export class PostgresStorage implements IStorage {
     } catch (error) {
       console.error('Error getting chart data:', error);
       return { labels: [], data: [] };
+    }
+  }
+
+  async getPageViewStats(startDate?: string, endDate?: string, groupBy: string = 'day'): Promise<any> {
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const start = startDate ? new Date(startDate) : thirtyDaysAgo;
+      const end = endDate ? new Date(endDate) : now;
+
+      // Total page views in period
+      const [totalViews] = await db.select({ 
+        count: sql<number>`count(*)` 
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_view'),
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end)
+        )
+      );
+
+      // Unique visitors (by IP)
+      const [uniqueVisitors] = await db.select({ 
+        count: sql<number>`count(DISTINCT ${analyticsEvents.ipAddress})` 
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_view'),
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end)
+        )
+      );
+
+      // Page views by URL
+      const pagesByUrl = await db.select({
+        pageUrl: analyticsEvents.pageUrl,
+        count: sql<number>`count(*)`
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_view'),
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end)
+        )
+      )
+      .groupBy(analyticsEvents.pageUrl)
+      .orderBy(desc(sql`count(*)`))
+      .limit(20);
+
+      // Views by period (for charts)
+      const viewsByPeriod = await db.select({
+        period: groupBy === 'day'
+          ? sql<string>`to_char(${analyticsEvents.createdAt}, 'YYYY-MM-DD')`
+          : sql<string>`to_char(${analyticsEvents.createdAt}, 'YYYY-MM')`,
+        count: sql<number>`count(*)`
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_view'),
+          gte(analyticsEvents.createdAt, start),
+          lte(analyticsEvents.createdAt, end)
+        )
+      )
+      .groupBy(sql`1`)
+      .orderBy(sql`1`);
+
+      return {
+        totalPageViews: Number(totalViews.count || 0),
+        uniqueVisitors: Number(uniqueVisitors.count || 0),
+        pagesByUrl: pagesByUrl.map((p: any) => ({
+          url: p.pageUrl,
+          views: Number(p.count)
+        })),
+        viewsByPeriod: viewsByPeriod.map((v: any) => ({
+          period: v.period,
+          views: Number(v.count)
+        }))
+      };
+    } catch (error) {
+      console.error('Error getting page view stats:', error);
+      return {
+        totalPageViews: 0,
+        uniqueVisitors: 0,
+        pagesByUrl: [],
+        viewsByPeriod: []
+      };
+    }
+  }
+
+  async getVisitorStats(startDate?: string, endDate?: string): Promise<any> {
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const start = startDate ? new Date(startDate) : thirtyDaysAgo;
+      const end = endDate ? new Date(endDate) : now;
+
+      const dateFilter = and(
+        eq(analyticsEvents.eventType, 'page_view'),
+        gte(analyticsEvents.createdAt, start),
+        lte(analyticsEvents.createdAt, end)
+      );
+
+      // Visitors by country
+      const byCountry = await db.select({
+        country: analyticsEvents.country,
+        count: sql<number>`count(DISTINCT ${analyticsEvents.ipAddress})`
+      })
+      .from(analyticsEvents)
+      .where(dateFilter)
+      .groupBy(analyticsEvents.country)
+      .orderBy(desc(sql`count(DISTINCT ${analyticsEvents.ipAddress})`))
+      .limit(20);
+
+      // Visitors by city
+      const byCity = await db.select({
+        city: analyticsEvents.city,
+        country: analyticsEvents.country,
+        count: sql<number>`count(DISTINCT ${analyticsEvents.ipAddress})`
+      })
+      .from(analyticsEvents)
+      .where(dateFilter)
+      .groupBy(analyticsEvents.city, analyticsEvents.country)
+      .orderBy(desc(sql`count(DISTINCT ${analyticsEvents.ipAddress})`))
+      .limit(20);
+
+      // Visitors by device type
+      const byDevice = await db.select({
+        deviceType: analyticsEvents.deviceType,
+        count: sql<number>`count(DISTINCT ${analyticsEvents.ipAddress})`
+      })
+      .from(analyticsEvents)
+      .where(dateFilter)
+      .groupBy(analyticsEvents.deviceType)
+      .orderBy(desc(sql`count(DISTINCT ${analyticsEvents.ipAddress})`));
+
+      // Visitors by browser
+      const byBrowser = await db.select({
+        browser: analyticsEvents.browser,
+        count: sql<number>`count(DISTINCT ${analyticsEvents.ipAddress})`
+      })
+      .from(analyticsEvents)
+      .where(dateFilter)
+      .groupBy(analyticsEvents.browser)
+      .orderBy(desc(sql`count(DISTINCT ${analyticsEvents.ipAddress})`));
+
+      // Visitors by OS
+      const byOS = await db.select({
+        os: analyticsEvents.os,
+        count: sql<number>`count(DISTINCT ${analyticsEvents.ipAddress})`
+      })
+      .from(analyticsEvents)
+      .where(dateFilter)
+      .groupBy(analyticsEvents.os)
+      .orderBy(desc(sql`count(DISTINCT ${analyticsEvents.ipAddress})`));
+
+      return {
+        byCountry: byCountry.map((c: any) => ({
+          country: c.country || 'Unknown',
+          visitors: Number(c.count)
+        })),
+        byCity: byCity.map((c: any) => ({
+          city: c.city || 'Unknown',
+          country: c.country || 'Unknown',
+          visitors: Number(c.count)
+        })),
+        byDevice: byDevice.map((d: any) => ({
+          device: d.deviceType || 'Unknown',
+          visitors: Number(d.count)
+        })),
+        byBrowser: byBrowser.map((b: any) => ({
+          browser: b.browser || 'Unknown',
+          visitors: Number(b.count)
+        })),
+        byOS: byOS.map((o: any) => ({
+          os: o.os || 'Unknown',
+          visitors: Number(o.count)
+        }))
+      };
+    } catch (error) {
+      console.error('Error getting visitor stats:', error);
+      return {
+        byCountry: [],
+        byCity: [],
+        byDevice: [],
+        byBrowser: [],
+        byOS: []
+      };
     }
   }
 
