@@ -2650,6 +2650,9 @@ export class PostgresStorage implements IStorage {
         console.log('✅ Updating existing App Config with ID:', existingConfigs[0].id);
         
         // Update existing config
+        // Convert boolean to integer for PostgreSQL compatibility
+        const smtpSecureValue = config.smtpSecure === true || config.smtpSecure === 1 ? 1 : 0;
+        
         const result = await db.update(appConfig)
           .set({
             appName: config.appName,
@@ -2663,7 +2666,7 @@ export class PostgresStorage implements IStorage {
             paypalMode: config.paypalMode,
             smtpHost: config.smtpHost,
             smtpPort: config.smtpPort,
-            smtpSecure: config.smtpSecure,
+            smtpSecure: smtpSecureValue,
             smtpUser: config.smtpUser,
             smtpPass: config.smtpPass,
             emailFrom: config.emailFrom,
@@ -2687,6 +2690,9 @@ export class PostgresStorage implements IStorage {
         console.log('✅ Creating new App Config');
         
         // Create new config
+        // Convert boolean to integer for PostgreSQL compatibility
+        const smtpSecureValue = config.smtpSecure === true || config.smtpSecure === 1 ? 1 : 0;
+        
         const result = await db.insert(appConfig).values({
           appName: config.appName || 'AutoMentor',
           appUrl: config.appUrl || 'https://cipka.onrender.com',
@@ -2699,7 +2705,7 @@ export class PostgresStorage implements IStorage {
           paypalMode: config.paypalMode || 'sandbox',
           smtpHost: config.smtpHost || '',
           smtpPort: config.smtpPort || 587,
-          smtpSecure: config.smtpSecure !== undefined ? config.smtpSecure : true,
+          smtpSecure: smtpSecureValue,
           smtpUser: config.smtpUser || '',
           smtpPass: config.smtpPass || '',
           emailFrom: config.emailFrom || '',

@@ -196,6 +196,18 @@ declare module 'express-serve-static-core' {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Serve uploaded files statically
+  const uploadsPath = path.resolve('uploads');
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+    console.log('📁 Created uploads directory:', uploadsPath);
+  }
+  
+  // Use express to serve files from /uploads
+  const express = await import('express');
+  app.use('/uploads', express.default.static(uploadsPath));
+  console.log('📁 Serving static files from:', uploadsPath);
+  
   // Health check endpoint for Railway and monitoring
   app.get("/api/health", healthCheck);
   app.get("/health", healthCheck);
