@@ -596,6 +596,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Check admin session status
+  app.get("/api/admin/session-check", async (req, res) => {
+    res.json({
+      isAdmin: !!req.session?.isAdmin,
+      adminId: req.session?.adminId || null,
+      sessionID: req.sessionID,
+      hasSession: !!req.session
+    });
+  });
+
   // ADMIN DEBUG ENDPOINT - tylko sprawdza, nie tworzy
   app.get("/api/debug/admin", async (req, res) => {
     try {
@@ -909,9 +919,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin middleware
   const requireAdmin = (req: Request, res: Response, next: any) => {
+    // Log for debugging
+    console.log('🔐 requireAdmin check:', {
+      hasSession: !!req.session,
+      isAdmin: req.session?.isAdmin,
+      adminId: req.session?.adminId,
+      sessionID: req.sessionID
+    });
+
     if (!req.session?.isAdmin) {
+      console.log('❌ Admin access denied - no valid session');
       return res.status(403).json({ error: "Admin access required" });
     }
+    
+    console.log('✅ Admin access granted');
     next();
   };
 
